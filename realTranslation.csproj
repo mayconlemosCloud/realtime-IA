@@ -11,6 +11,7 @@
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Websocket.Client" Version="5.3.0" />
     <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.43.0" />
+    <PackageReference Include="Azure.AI.Translation.Text" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

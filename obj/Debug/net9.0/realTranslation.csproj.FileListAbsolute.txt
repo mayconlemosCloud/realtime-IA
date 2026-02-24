@@ -135,3 +135,4 @@ C:\Users\lemos\Desktop\Projeto\dotnet\TraducaoTIME\bin\Debug\net9.0\runtimes\win
 C:\Users\lemos\Desktop\Projeto\dotnet\TraducaoTIME\bin\Debug\net9.0\runtimes\win-x86\native\Microsoft.CognitiveServices.Speech.extension.kws.dll
 C:\Users\lemos\Desktop\Projeto\dotnet\TraducaoTIME\bin\Debug\net9.0\runtimes\win-x86\native\Microsoft.CognitiveServices.Speech.extension.kws.ort.dll
 C:\Users\lemos\Desktop\Projeto\dotnet\TraducaoTIME\bin\Debug\net9.0\runtimes\win-x86\native\Microsoft.CognitiveServices.Speech.extension.lu.dll
+C:\Users\lemos\Desktop\Projeto\dotnet\TraducaoTIME\bin\Debug\net9.0\Azure.AI.Translation.Text.dll

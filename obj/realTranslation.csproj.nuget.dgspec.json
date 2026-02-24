@@ -51,6 +51,10 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "Azure.AI.Translation.Text": {
+              "target": "Package",
+              "version": "[1.0.0, )"
+            },
             "Microsoft.CognitiveServices.Speech": {
               "target": "Package",
               "version": "[1.43.0, )"

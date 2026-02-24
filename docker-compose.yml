@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: libretranslate
+    ports:
+      - "5000:5000"
+    environment:
+      LT_LOAD_ONLY: "pt,en"
+      LT_THREADS: "4"
+    volumes:
+      - libretranslate_models:/home/libretranslate/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  libretranslate_models:

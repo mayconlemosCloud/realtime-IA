@@ -2,17 +2,22 @@ using System;
 using System.Linq;
 using System.IO;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Text.Json;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using Microsoft.CognitiveServices.Speech.Transcription;
+using Azure;
+using Azure.AI.Translation.Text;
 
 class Program
 {
     static long totalBytesRecorded = 0;
     static byte[] audioBuffer;
     static int bufferPosition = 0;
+    static HttpClient httpClient = new HttpClient();
 
     static void Main()
     {
@@ -149,7 +154,7 @@ class Program
                         capture.StartRecording();
                         bool isFirst = true;
 
-                        conversationTranscriber.Transcribing += (s, e) =>
+                        conversationTranscriber.Transcribing += async (s, e) =>
                         {
                             if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {
@@ -166,16 +171,43 @@ class Program
                                 }
 
                                 string speakerId = !string.IsNullOrEmpty(e.Result.SpeakerId) ? e.Result.SpeakerId : "Unknown";
-                                Console.WriteLine($"\r[{speakerId}] {e.Result.Text}");
+                                Console.Write($"\r[{speakerId}] {e.Result.Text.PadRight(60)}");
+
+                                // Traduz em tempo real também
+                                try
+                                {
+                                    string textoTraduzido = await TraduirTexto(e.Result.Text);
+                                    Console.Write($" | 🌐 {textoTraduzido.PadRight(60)}");
+                                }
+                                catch
+                                {
+                                    // Silencia erro de tradução parcial
+                                }
                             }
                         };
 
-                        conversationTranscriber.Transcribed += (s, e) =>
+                        conversationTranscriber.Transcribed += async (s, e) =>
                         {
-                            if (e.Result.Reason == ResultReason.RecognizedSpeech)
+                            if (e.Result.Reason == ResultReason.RecognizedSpeech && !string.IsNullOrWhiteSpace(e.Result.Text))
                             {
                                 string speakerId = !string.IsNullOrEmpty(e.Result.SpeakerId) ? e.Result.SpeakerId : "Unknown";
-                                Console.WriteLine($"\n👤 [{speakerId}] {e.Result.Text}\n");
+
+                                // Limpa linha parcial anterior
+                                Console.Write("\r" + new string(' ', 160) + "\r");
+
+                                // Exibe texto final
+                                Console.WriteLine($"👤 [{speakerId}] {e.Result.Text}");
+
+                                // Traduz para PT-BR
+                                try
+                                {
+                                    string textoTraduzido = await TraduirTexto(e.Result.Text);
+                                    Console.WriteLine($"🌐 [{speakerId}] {textoTraduzido}\n");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"⚠️  Erro na tradução\n");
+                                }
                             }
                         };
 
@@ -186,9 +218,7 @@ class Program
                         };
 
                         await conversationTranscriber.StartTranscribingAsync();
-
                         Console.ReadLine();
-
                         await conversationTranscriber.StopTranscribingAsync();
                         capture.StopRecording();
                     }
@@ -205,7 +235,7 @@ class Program
                         capture.StartRecording();
                         bool isFirst = true;
 
-                        recognizer.Recognizing += (s, e) =>
+                        recognizer.Recognizing += async (s, e) =>
                         {
                             if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {
@@ -220,15 +250,41 @@ class Program
                                     Console.WriteLine("═══════════════════════════════════════════\n");
                                     isFirst = false;
                                 }
-                                Console.WriteLine($"\r[Reconhecendo...] {e.Result.Text}");
+                                Console.Write($"\r[Reconhecendo...] {e.Result.Text.PadRight(60)}");
+
+                                // Traduz em tempo real também
+                                try
+                                {
+                                    string textoTraduzido = await TraduirTexto(e.Result.Text);
+                                    Console.Write($" | 🌐 {textoTraduzido.PadRight(60)}");
+                                }
+                                catch
+                                {
+                                    // Silencia erro de tradução parcial
+                                }
                             }
                         };
 
-                        recognizer.Recognized += (s, e) =>
+                        recognizer.Recognized += async (s, e) =>
                         {
                             if (e.Result.Reason == ResultReason.RecognizedSpeech && !string.IsNullOrWhiteSpace(e.Result.Text))
                             {
-                                Console.WriteLine($"\n[Finalizado]     {e.Result.Text}\n");
+                                // Limpa linha parcial
+                                Console.Write("\r" + new string(' ', 160) + "\r");
+
+                                // Exibe texto final
+                                Console.WriteLine($"👤 [Finalizado] {e.Result.Text}");
+
+                                // Traduz texto
+                                try
+                                {
+                                    string textoTraduzido = await TraduirTexto(e.Result.Text);
+                                    Console.WriteLine($"🌐 [Tradução]  {textoTraduzido}\n");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"⚠️  Erro na tradução\n");
+                                }
                             }
                         };
 
@@ -239,12 +295,6 @@ class Program
                     }
                 }
             }
-
-            Console.WriteLine("\n═══════════════════════════════════════════\n");
-            Console.WriteLine("✓ Transcrição finalizada!");
-
-            pushStream.Close();
-            capture.Dispose();
         }
         catch (Exception ex)
         {
@@ -253,29 +303,51 @@ class Program
         }
     }
 
-    private static string SaveAudioToTempFile()
+    private static async Task<string> TraduirTexto(string texto)
     {
-        string tempFile = Path.Combine(Path.GetTempPath(), "audio_capture.wav");
-
         try
         {
-            using (var writer = new WaveFileWriter(tempFile, new WaveFormat(16000, 1)))
-            {
-                writer.Write(audioBuffer, 0, bufferPosition);
-            }
+            // Usa LibreTranslate local (Docker)
+            string endpoint = "http://localhost:5000/translate";
 
-            if (File.Exists(tempFile))
+            using (var request = new HttpRequestMessage())
             {
-                var fileInfo = new FileInfo(tempFile);
-                Console.WriteLine($"[DEBUG] Arquivo criado: {tempFile} ({fileInfo.Length} bytes)");
-            }
+                request.Method = new HttpMethod("POST");
+                request.RequestUri = new Uri(endpoint);
 
-            return tempFile;
+                var payload = new { q = texto, source = "auto", target = "pt" };
+                request.Content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+
+                using (var response = await httpClient.SendAsync(request))
+                {
+                    string responseBody = await response.Content.ReadAsStringAsync();
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine("\n⚠️  Erro na tradução - LibreTranslate não disponível");
+                        Console.WriteLine("Execute: docker compose up -d");
+                        return texto;
+                    }
+
+                    using (JsonDocument doc = JsonDocument.Parse(responseBody))
+                    {
+                        string textoTraduzido = doc.RootElement.GetProperty("translatedText").GetString();
+                        return textoTraduzido ?? texto;
+                    }
+                }
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DEBUG] Erro ao salvar áudio: {ex.Message}");
-            throw;
+            Console.WriteLine($"\n⚠️  Erro na tradução: {ex.Message}");
+            Console.WriteLine("Certifique-se de que LibreTranslate está rodando (docker compose up -d)");
+            return texto;
         }
+    }
+
+    private static async Task<string> DetectarIdioma(string texto)
+    {
+        // LibreTranslate usa "auto" para detecção automática
+        return "auto";
     }
 }

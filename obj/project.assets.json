@@ -2,6 +2,24 @@
   "version": 3,
   "targets": {
     "net9.0": {
+      "Azure.AI.Translation.Text/1.0.0": {
+        "type": "package",
+        "dependencies": {
+          "Azure.Core": "1.39.0",
+          "System.ClientModel": "1.0.0",
+          "System.Text.Json": "4.7.2"
+        },
+        "compile": {
+          "lib/netstandard2.0/Azure.AI.Translation.Text.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Azure.AI.Translation.Text.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Azure.Core/1.44.1": {
         "type": "package",
         "dependencies": {
@@ -771,6 +789,22 @@
     }
   },
   "libraries": {
+    "Azure.AI.Translation.Text/1.0.0": {
+      "sha512": "1NuUYXydLzlJH8NXuq3SIBvCJ1VDSXJym0BA24bFWkLMDluYQaS4pwmrVyEfTqFmqO1fqzAxP87RMqH+zWdr4Q==",
+      "type": "package",
+      "path": "azure.ai.translation.text/1.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "CHANGELOG.md",
+        "README.md",
+        "azure.ai.translation.text.1.0.0.nupkg.sha512",
+        "azure.ai.translation.text.nuspec",
+        "azureicon.png",
+        "lib/netstandard2.0/Azure.AI.Translation.Text.dll",
+        "lib/netstandard2.0/Azure.AI.Translation.Text.xml"
+      ]
+    },
     "Azure.Core/1.44.1": {
       "sha512": "YyznXLQZCregzHvioip07/BkzjuWNXogJEVz9T5W6TwjNr17ax41YGzYMptlo2G10oLCuVPoyva62y0SIRDixg==",
       "type": "package",
@@ -1827,6 +1861,7 @@
   },
   "projectFileDependencyGroups": {
     "net9.0": [
+      "Azure.AI.Translation.Text >= 1.0.0",
       "Microsoft.CognitiveServices.Speech >= 1.43.0",
       "NAudio >= 2.2.1",
       "Websocket.Client >= 5.3.0"
@@ -1883,6 +1918,10 @@
       "net9.0": {
         "targetAlias": "net9.0",
         "dependencies": {
+          "Azure.AI.Translation.Text": {
+            "target": "Package",
+            "version": "[1.0.0, )"
+          },
           "Microsoft.CognitiveServices.Speech": {
             "target": "Package",
             "version": "[1.43.0, )"
