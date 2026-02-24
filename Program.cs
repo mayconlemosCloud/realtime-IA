@@ -1,40 +1,38 @@
 using System;
 using System.Linq;
-using System.Net.WebSockets;
-using System.Net.Http;
+using System.IO;
+using System.Collections.Generic;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
-using Websocket.Client;
-using System.Text.Json;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech.Audio;
+using Microsoft.CognitiveServices.Speech.Transcription;
 
 class Program
 {
-    const string ASSEMBLYAI_KEY = "341bfb4ed0c54a68898fae3867b04082"; // Coloque sua API Key aqui
-    static WebsocketClient ws;
-    static HttpClient httpClient = new HttpClient();
+    static long totalBytesRecorded = 0;
+    static byte[] audioBuffer;
+    static int bufferPosition = 0;
 
-    // Acumula áudio para enviar em chunks de 100ms
-    static Queue<byte> audioBuffer = new Queue<byte>();
-    const int SAMPLE_RATE = 16000;
-    const int BYTES_PER_100MS = SAMPLE_RATE * 2 / 10; // 16000 * 2 bytes (16-bit) / 10 = 3200 bytes
-
-    static async Task Main()
+    static void Main()
     {
-        // Gera token temporário para autenticação
-        string token = await GenerateToken(60);
-        if (string.IsNullOrEmpty(token))
-        {
-            Console.WriteLine("Erro ao gerar token");
-            return;
-        }
+        Console.WriteLine("╔════════════════════════════════════════╗");
+        Console.WriteLine("║     TRANSCRIÇÃO DE ÁUDIO - AZURE       ║");
+        Console.WriteLine("╚════════════════════════════════════════╝\n");
+
+        Console.WriteLine("Escolha uma opção:");
+        Console.WriteLine("1 - Transcrição SEM diarização (tempo real)");
+        Console.WriteLine("2 - Transcrição COM diarização (tempo real)");
+        Console.WriteLine("3 - Apenas capturar áudio (sem transcrição)");
+        Console.Write("\nOpção: ");
+
+        string option = Console.ReadLine() ?? "1";
 
         // Lista dispositivos
         var enumerator = new MMDeviceEnumerator();
         var devices = enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active).ToList();
 
-        Console.WriteLine("Dispositivos disponíveis:");
+        Console.WriteLine("\nDispositivos disponíveis:");
         for (int i = 0; i < devices.Count; i++)
             Console.WriteLine($"{i}: {devices[i].FriendlyName} ({devices[i].DataFlow})");
 
@@ -42,117 +40,242 @@ class Program
         int deviceIndex = int.Parse(Console.ReadLine() ?? "0");
         var device = devices[deviceIndex];
 
-        // Seleciona captura
-        IWaveIn capture = device.DataFlow == DataFlow.Render
-            ? new WasapiLoopbackCapture(device)
-            : new WasapiCapture(device);
+        Console.WriteLine($"\n✓ Dispositivo selecionado: {device.FriendlyName}\n");
 
-        capture.WaveFormat = new WaveFormat(16000, 1); // PCM 16kHz mono
-        capture.DataAvailable += OnDataAvailable;
-
-        // Configura WebSocket AssemblyAI com v3/ws e token
-        var url = new Uri($"wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&formatted_finals=true&token={token}");
-        var clientWebSocket = new ClientWebSocket();
-
-        ws = new WebsocketClient(url, () => clientWebSocket);
-        ws.ReconnectTimeout = TimeSpan.FromSeconds(30);
-
-        ws.MessageReceived.Subscribe(msg =>
+        // Processa transcrição em tempo real se selecionado
+        if (option == "1" || option == "2")
         {
-            try
-            {
-                var json = JsonSerializer.Deserialize<JsonElement>(msg.Text);
-
-                // Processa evento de transcrição (tipo "Turn")
-                if (json.TryGetProperty("type", out var type) && type.GetString() == "Turn")
-                {
-                    if (json.TryGetProperty("transcript", out var transcript))
-                    {
-                        var text = transcript.GetString();
-                        if (!string.IsNullOrWhiteSpace(text))
-                        {
-                            if (json.TryGetProperty("end_of_turn", out var eot) && eot.GetBoolean())
-                                Console.WriteLine($"\n✓ Turno finalizado: {text}\n");
-                            else
-                                Console.WriteLine($"\rTranscrevendo: {text}");
-                        }
-                    }
-                }
-
-                if (json.TryGetProperty("error", out var error))
-                    Console.WriteLine($"⚠ Erro: {error.GetString()}");
-            }
-            catch (Exception ex)
-            {
-                // Suprimir erros de parsing para mensagens não-JSON
-            }
-        });
-
-        ws.Start();
-
-        capture.StartRecording();
-        Console.WriteLine("\n📡 Streaming para AssemblyAI. Pressione ENTER para sair...\n");
-        Console.ReadLine();
-
-        capture.StopRecording();
-        capture.Dispose();
-        ws.Stop(WebSocketCloseStatus.NormalClosure, "Encerrando");
-    }
-
-    // Gera token temporário
-    static async Task<string> GenerateToken(int expiresInSeconds)
-    {
-        try
-        {
-            string url = $"https://streaming.assemblyai.com/v3/token?expires_in_seconds={expiresInSeconds}";
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("Authorization", ASSEMBLYAI_KEY);
-
-            var response = await httpClient.SendAsync(request);
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadAsStringAsync();
-                var json = JsonSerializer.Deserialize<JsonElement>(content);
-                if (json.TryGetProperty("token", out var tokenProp))
-                    return tokenProp.GetString();
-            }
+            bool useDiarization = option == "2";
+            TranscreverAudioEmTempoReal(device, useDiarization).Wait();
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"Erro ao gerar token: {ex.Message}");
+            // Apenas captura
+            IWaveIn capture = device.DataFlow == DataFlow.Render
+                ? new WasapiLoopbackCapture(device)
+                : new WasapiCapture(device);
+
+            capture.WaveFormat = new WaveFormat(16000, 16, 1);
+
+            audioBuffer = new byte[16000 * 2 * 30];
+            bufferPosition = 0;
+            totalBytesRecorded = 0;
+
+            capture.DataAvailable += OnDataAvailable;
+            capture.StartRecording();
+
+            Console.WriteLine("🎤 Capturando áudio. Pressione ENTER para parar...\n");
+            Console.ReadLine();
+
+            capture.StopRecording();
+            Console.WriteLine($"\n✓ Captura finalizada. Total: {totalBytesRecorded} bytes");
+            capture.Dispose();
         }
-        return null;
     }
 
     private static void OnDataAvailable(object sender, WaveInEventArgs e)
     {
-        // Acumula bytes de áudio na fila
-        for (int i = 0; i < e.BytesRecorded; i++)
+        // Copia dados para o buffer
+        if (bufferPosition + e.BytesRecorded <= audioBuffer.Length)
         {
-            audioBuffer.Enqueue(e.Buffer[i]);
+            Array.Copy(e.Buffer, 0, audioBuffer, bufferPosition, e.BytesRecorded);
+            bufferPosition += e.BytesRecorded;
         }
 
-        // Envia quando acumular 100ms de áudio (3200 bytes)
-        while (audioBuffer.Count >= BYTES_PER_100MS)
+        totalBytesRecorded += e.BytesRecorded;
+        Console.Write(".");
+    }
+
+    private static async Task TranscreverAudioEmTempoReal(MMDevice device, bool useDiarization)
+    {
+        Console.WriteLine("╔════════════════════════════════════════╗");
+        Console.WriteLine("║   TRANSCRIÇÃO EM TEMPO REAL - AZURE    ║");
+        Console.WriteLine("╚════════════════════════════════════════╝\n");
+
+        try
         {
-            byte[] chunk = new byte[BYTES_PER_100MS];
-            for (int i = 0; i < BYTES_PER_100MS; i++)
+            // Obtém credenciais do Azure
+            string azureKey = Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY") ?? "";
+            string azureRegion = Environment.GetEnvironmentVariable("AZURE_SPEECH_REGION") ?? "";
+
+            if (string.IsNullOrWhiteSpace(azureKey) || string.IsNullOrWhiteSpace(azureRegion))
             {
-                chunk[i] = audioBuffer.Dequeue();
+                Console.WriteLine("❌ ERRO: Variáveis de ambiente não configuradas!\n");
+                return;
             }
 
-            if (ws != null)
+            // Configuração do Speech Recognizer
+            var speechConfig = SpeechConfig.FromSubscription(azureKey, azureRegion);
+            speechConfig.SpeechRecognitionLanguage = "pt-BR";
+            speechConfig.OutputFormat = OutputFormat.Detailed;
+
+            // Config para diarização
+            if (useDiarization)
             {
-                try
+                speechConfig.SetProperty(PropertyId.SpeechServiceResponse_DiarizeIntermediateResults, "true");
+                Console.WriteLine("✓ Diarização ativada\n");
+            }
+
+            // Cria captura a partir do dispositivo selecionado
+            IWaveIn capture = device.DataFlow == DataFlow.Render
+                ? new WasapiLoopbackCapture(device)
+                : new WasapiCapture(device);
+
+            capture.WaveFormat = new WaveFormat(16000, 16, 1);
+
+            // Cria PushAudioInputStream para streaming
+            var pushStream = AudioInputStream.CreatePushStream(AudioStreamFormat.GetWaveFormatPCM(16000, 16, 1));
+            var audioConfig = AudioConfig.FromStreamInput(pushStream);
+
+            // Conecta os eventos do WaveIn ao PushStream
+            capture.DataAvailable += (sender, e) =>
+            {
+                byte[] buffer = new byte[e.BytesRecorded];
+                Array.Copy(e.Buffer, 0, buffer, 0, e.BytesRecorded);
+                pushStream.Write(buffer);
+            };
+
+            using (audioConfig)
+            {
+                // Para diarização, usamos ConversationTranscriber em vez de SpeechRecognizer
+                if (useDiarization)
                 {
-                    ws.Send(new ArraySegment<byte>(chunk, 0, BYTES_PER_100MS));
-                    Console.Write(".");
+                    using (var conversationTranscriber = new ConversationTranscriber(speechConfig, audioConfig))
+                    {
+                        Console.WriteLine("🎤 Iniciando captura e transcrição em tempo real COM DIARIZAÇÃO...");
+                        Console.WriteLine("Fale agora! Pressione ENTER para parar.\n");
+                        Console.WriteLine("═══════════════════════════════════════════\n");
+
+                        capture.StartRecording();
+                        bool isFirst = true;
+
+                        conversationTranscriber.Transcribing += (s, e) =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(e.Result.Text))
+                            {
+                                if (isFirst)
+                                {
+                                    Console.Clear();
+                                    Console.WriteLine("╔════════════════════════════════════════╗");
+                                    Console.WriteLine("║   TRANSCRIÇÃO EM TEMPO REAL - AZURE    ║");
+                                    Console.WriteLine("╚════════════════════════════════════════╝\n");
+                                    Console.WriteLine($"Dispositivo: {device.FriendlyName}");
+                                    Console.WriteLine($"Diarização: SIM\n");
+                                    Console.WriteLine("═══════════════════════════════════════════\n");
+                                    isFirst = false;
+                                }
+
+                                string speakerId = !string.IsNullOrEmpty(e.Result.SpeakerId) ? e.Result.SpeakerId : "Unknown";
+                                Console.WriteLine($"\r[{speakerId}] {e.Result.Text}");
+                            }
+                        };
+
+                        conversationTranscriber.Transcribed += (s, e) =>
+                        {
+                            if (e.Result.Reason == ResultReason.RecognizedSpeech)
+                            {
+                                string speakerId = !string.IsNullOrEmpty(e.Result.SpeakerId) ? e.Result.SpeakerId : "Unknown";
+                                Console.WriteLine($"\n👤 [{speakerId}] {e.Result.Text}\n");
+                            }
+                        };
+
+                        conversationTranscriber.Canceled += (s, e) =>
+                        {
+                            var cancellation = CancellationDetails.FromResult(e.Result);
+                            Console.WriteLine($"\n❌ ERRO: {cancellation.ErrorDetails}");
+                        };
+
+                        await conversationTranscriber.StartTranscribingAsync();
+
+                        Console.ReadLine();
+
+                        await conversationTranscriber.StopTranscribingAsync();
+                        capture.StopRecording();
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine($"Erro ao enviar áudio: {ex.Message}");
+                    // Sem diarização, usa SpeechRecognizer normal
+                    using (var recognizer = new SpeechRecognizer(speechConfig, audioConfig))
+                    {
+                        Console.WriteLine("🎤 Iniciando captura e transcrição em tempo real...");
+                        Console.WriteLine("Fale agora! Pressione ENTER para parar.\n");
+                        Console.WriteLine("═══════════════════════════════════════════\n");
+
+                        capture.StartRecording();
+                        bool isFirst = true;
+
+                        recognizer.Recognizing += (s, e) =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(e.Result.Text))
+                            {
+                                if (isFirst)
+                                {
+                                    Console.Clear();
+                                    Console.WriteLine("╔════════════════════════════════════════╗");
+                                    Console.WriteLine("║   TRANSCRIÇÃO EM TEMPO REAL - AZURE    ║");
+                                    Console.WriteLine("╚════════════════════════════════════════╝\n");
+                                    Console.WriteLine($"Dispositivo: {device.FriendlyName}");
+                                    Console.WriteLine($"Diarização: NÃO\n");
+                                    Console.WriteLine("═══════════════════════════════════════════\n");
+                                    isFirst = false;
+                                }
+                                Console.WriteLine($"\r[Reconhecendo...] {e.Result.Text}");
+                            }
+                        };
+
+                        recognizer.Recognized += (s, e) =>
+                        {
+                            if (e.Result.Reason == ResultReason.RecognizedSpeech && !string.IsNullOrWhiteSpace(e.Result.Text))
+                            {
+                                Console.WriteLine($"\n[Finalizado]     {e.Result.Text}\n");
+                            }
+                        };
+
+                        recognizer.StartContinuousRecognitionAsync().Wait();
+                        Console.ReadLine();
+                        recognizer.StopContinuousRecognitionAsync().Wait();
+                        capture.StopRecording();
+                    }
                 }
             }
+
+            Console.WriteLine("\n═══════════════════════════════════════════\n");
+            Console.WriteLine("✓ Transcrição finalizada!");
+
+            pushStream.Close();
+            capture.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ ERRO: {ex.Message}");
+            Console.WriteLine($"Stack: {ex.StackTrace}");
+        }
+    }
+
+    private static string SaveAudioToTempFile()
+    {
+        string tempFile = Path.Combine(Path.GetTempPath(), "audio_capture.wav");
+
+        try
+        {
+            using (var writer = new WaveFileWriter(tempFile, new WaveFormat(16000, 1)))
+            {
+                writer.Write(audioBuffer, 0, bufferPosition);
+            }
+
+            if (File.Exists(tempFile))
+            {
+                var fileInfo = new FileInfo(tempFile);
+                Console.WriteLine($"[DEBUG] Arquivo criado: {tempFile} ({fileInfo.Length} bytes)");
+            }
+
+            return tempFile;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Erro ao salvar áudio: {ex.Message}");
+            throw;
         }
     }
 }

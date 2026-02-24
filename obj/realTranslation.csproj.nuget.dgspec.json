@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\realTranslation\\realTranslation.csproj": {}
+    "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\TraducaoTIME\\realTranslation.csproj": {}
   },
   "projects": {
-    "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\realTranslation\\realTranslation.csproj": {
+    "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\TraducaoTIME\\realTranslation.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\realTranslation\\realTranslation.csproj",
+        "projectUniqueName": "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\TraducaoTIME\\realTranslation.csproj",
         "projectName": "realTranslation",
-        "projectPath": "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\realTranslation\\realTranslation.csproj",
+        "projectPath": "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\TraducaoTIME\\realTranslation.csproj",
         "packagesPath": "C:\\Users\\lemos\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\realTranslation\\obj\\",
+        "outputPath": "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\TraducaoTIME\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -51,6 +51,10 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "Microsoft.CognitiveServices.Speech": {
+              "target": "Package",
+              "version": "[1.43.0, )"
+            },
             "NAudio": {
               "target": "Package",
               "version": "[2.2.1, )"
