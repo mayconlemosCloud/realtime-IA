@@ -261,13 +261,13 @@ namespace TraducaoTIME.UI
 
                 // Extrair apenas perguntas
                 string questions = ExtractQuestions(historyContent);
-                
+
                 // Montar resposta simplificada
                 StringBuilder fullAnalysis = new StringBuilder();
                 fullAnalysis.AppendLine("❓ PERGUNTAS/QUESTÕES LEVANTADAS:");
                 fullAnalysis.AppendLine("═══════════════════════════════════════════════════════");
                 fullAnalysis.AppendLine();
-                
+
                 if (string.IsNullOrWhiteSpace(questions))
                 {
                     fullAnalysis.AppendLine("Nenhuma pergunta específica foi encontrada na conversa.");
