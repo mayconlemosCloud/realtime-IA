@@ -108,7 +108,7 @@ namespace TraducaoTIME.Features.TranscricaoSemDiarizacao
                                 {
                                     Console.WriteLine($"[DEBUG] Interim (sem tradução): {displayText}");
                                 }
-                                
+
                                 if (isFirst)
                                 {
                                     isFirst = false;
