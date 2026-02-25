@@ -105,7 +105,7 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
                         conversationTranscriber.Transcribed += async (s, e) =>
                         {
                             Console.WriteLine($"[DEBUG] Transcribed: {e.Result.Text} | Reason: {e.Result.Reason}");
-                            
+
                             // Aceitar qualquer resultado não vazio como final
                             if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {

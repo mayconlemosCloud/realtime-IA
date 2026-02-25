@@ -111,7 +111,7 @@ namespace TraducaoTIME.Features.TranscricaoSemDiarizacao
                         translationRecognizer.Recognized += (s, e) =>
                         {
                             Console.WriteLine($"[DEBUG] Recognized: {e.Result.Text} | Reason: {e.Result.Reason}");
-                            
+
                             // Aceitar qualquer resultado não vazio como final
                             if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {
