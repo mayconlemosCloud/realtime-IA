@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Text;
 using System.Windows.Forms;
 using TraducaoTIME.Utils;
 
@@ -15,9 +18,14 @@ namespace TraducaoTIME.UI
         private Panel? buttonPanel;
         private Button? buttonIniciar;
         private Button? buttonParar;
-        
+
         private System.Threading.Thread? transcriptionThread;
         private bool isTranscribing = false;
+
+        // Histórico de linhas finalizadas
+        private List<string> _finalizedLines = new List<string>();
+        // Texto interim atual (cresce palavra por palavra)
+        private string _currentInterimText = "";
 
         public MainForm()
         {
@@ -177,22 +185,186 @@ namespace TraducaoTIME.UI
 
         public void ShowTranslation(string transcription)
         {
-            System.Diagnostics.Debug.WriteLine($"[DEBUG] ShowTranslation chamado com: {transcription}");
-            Console.WriteLine($"[UI] {transcription}");
+            // Converter para TranscriptionSegment e chamar o método melhorado
+            var segment = new TranscriptionSegment(transcription, isFinal: true);
+            ShowTranslation(segment);
+        }
+
+        public void ShowTranslation(TranscriptionSegment segment)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] ShowTranslation chamado com: '{segment.Text}' (Final: {segment.IsFinal})");
+            Console.WriteLine($"[UI] Interim={!segment.IsFinal} | Text='{segment.Text}' | Finalized antes={_finalizedLines.Count}");
 
             // Thread-safe: garantir que a atualização aconteça na thread da UI
             if (conversationTextBox?.InvokeRequired == true)
             {
-                conversationTextBox.Invoke(new Action(() => ShowTranslation(transcription)));
+                conversationTextBox.Invoke(new Action(() => ShowTranslation(segment)));
                 return;
             }
 
-            if (conversationTextBox != null)
+            if (segment.IsFinal)
             {
-                // Adicionar à transcrição existente (em tempo real)
-                conversationTextBox.AppendText(transcription + "\r\n");
-                conversationTextBox.ScrollToCaret();
+                // FINAL: Adicionar o texto confirmado às linhas finalizadas
+                if (!string.IsNullOrWhiteSpace(segment.Text))
+                {
+                    _finalizedLines.Add(segment.Text);
+                    Console.WriteLine($"[UI] [FINAL] ADICIONADO: '{segment.Text}' | Total linhas: {_finalizedLines.Count}");
+                }
+
+                // Limpar interim para a próxima frase
+                _currentInterimText = "";
+                Console.WriteLine($"[UI] Interim limpo, pronto para nova frase");
             }
+            else
+            {
+                // INTERIM: Atualizar o texto que está crescendo
+                if (!string.IsNullOrWhiteSpace(segment.Text))
+                {
+                    _currentInterimText = segment.Text;
+                    Console.WriteLine($"[UI] [INTERIM] ATUALIZADO: '{segment.Text}'");
+                }
+            }
+
+            // Reconstruir a exibição
+            RefreshDisplay();
+        }
+
+        private void RefreshDisplay()
+        {
+            if (conversationTextBox == null) return;
+
+            // Construir o texto completo com quebras de linhas claras e visuais
+            StringBuilder displayText = new StringBuilder();
+
+            // Adicionar linhas finalizadas
+            for (int i = 0; i < _finalizedLines.Count; i++)
+            {
+                if (i > 0)
+                    displayText.Append("\r\n");
+
+                // Usar prefixo simples em ASCII para finalizadas
+                displayText.Append($"• {_finalizedLines[i]}");
+            }
+
+            // Adicionar separador e interim (se houver) em nova linha clara
+            if (!string.IsNullOrWhiteSpace(_currentInterimText))
+            {
+                // Se há linhas finalizadas, adicionar quebra de linha e separador visual
+                if (_finalizedLines.Count > 0)
+                {
+                    displayText.Append("\r\n");
+                    displayText.Append("────────────────────────────────────────\r\n");
+                }
+                else if (displayText.Length > 0)
+                    displayText.Append("\r\n");
+
+                // Usar prefixo simples para interim
+                displayText.Append($"» {_currentInterimText}");
+            }
+
+            // DEBUG
+            Console.WriteLine($"[RefreshDisplay] Finalizadas: {_finalizedLines.Count} | Interim: {!string.IsNullOrWhiteSpace(_currentInterimText)}");
+            Console.WriteLine($"[RefreshDisplay] Atualizando display com {_finalizedLines.Count} linhas finalizadas");
+
+            // Atualizar o texto do RichTextBox
+            conversationTextBox.Text = displayText.ToString();
+
+            // Agora formatar as cores
+            FormatDisplay();
+
+            // Ir para o final do texto para acompanhar a transcrição
+            conversationTextBox.SelectionStart = conversationTextBox.Text.Length;
+            conversationTextBox.ScrollToCaret();
+        }
+
+        private void FormatDisplay()
+        {
+            if (conversationTextBox == null) return;
+
+            // Começar tudo em branco normal
+            conversationTextBox.SelectAll();
+            conversationTextBox.SelectionColor = System.Drawing.Color.White;
+            conversationTextBox.SelectionFont = new System.Drawing.Font(
+                conversationTextBox.Font.FontFamily,
+                conversationTextBox.Font.Size,
+                System.Drawing.FontStyle.Regular
+            );
+
+            // Formatar linhas finalizadas (branco brilhante + normal) - cada uma em sua linha
+            int currentPos = 0;
+            for (int i = 0; i < _finalizedLines.Count; i++)
+            {
+                string lineText = $"• {_finalizedLines[i]}";
+                int lineStartPos = conversationTextBox.Text.IndexOf(lineText, currentPos);
+
+                if (lineStartPos >= 0)
+                {
+                    // Formatar o prefixo (color lightgray)
+                    int prefixLen = 2; // "• " = 2 caracteres
+                    conversationTextBox.Select(lineStartPos, prefixLen);
+                    conversationTextBox.SelectionColor = System.Drawing.Color.LightGray;
+                    conversationTextBox.SelectionFont = new System.Drawing.Font(
+                        conversationTextBox.Font.FontFamily,
+                        conversationTextBox.Font.Size,
+                        System.Drawing.FontStyle.Regular
+                    );
+
+                    // Formatar o texto em branco
+                    conversationTextBox.Select(lineStartPos + prefixLen, lineText.Length - prefixLen);
+                    conversationTextBox.SelectionColor = System.Drawing.Color.White;
+                    conversationTextBox.SelectionFont = new System.Drawing.Font(
+                        conversationTextBox.Font.FontFamily,
+                        conversationTextBox.Font.Size,
+                        System.Drawing.FontStyle.Regular
+                    );
+
+                    currentPos = lineStartPos + lineText.Length;
+                }
+            }
+
+            // Formatar separador visual (se houver interim)
+            if (!string.IsNullOrWhiteSpace(_currentInterimText))
+            {
+                string separator = "────────────────────────────────────────";
+                int separatorPos = conversationTextBox.Text.IndexOf(separator);
+                if (separatorPos >= 0)
+                {
+                    conversationTextBox.Select(separatorPos, separator.Length);
+                    conversationTextBox.SelectionColor = System.Drawing.Color.DarkGray;
+                }
+            }
+
+            // Formatar interim (amarelo brilhante + itálico) - em sua própria linha
+            if (!string.IsNullOrWhiteSpace(_currentInterimText))
+            {
+                string interimText = $"» {_currentInterimText}";
+                int interimPos = conversationTextBox.Text.LastIndexOf(interimText);
+
+                if (interimPos >= 0)
+                {
+                    // Formatar o prefixo em amarelo
+                    int prefixLen = 2; // "» " = 2 caracteres
+                    conversationTextBox.Select(interimPos, prefixLen);
+                    conversationTextBox.SelectionColor = System.Drawing.Color.Yellow;
+                    conversationTextBox.SelectionFont = new System.Drawing.Font(
+                        conversationTextBox.Font.FontFamily,
+                        conversationTextBox.Font.Size,
+                        System.Drawing.FontStyle.Bold
+                    );
+
+                    // Formatar o texto em cor laranja itálico
+                    conversationTextBox.Select(interimPos + prefixLen, interimText.Length - prefixLen);
+                    conversationTextBox.SelectionColor = System.Drawing.Color.Gold;
+                    conversationTextBox.SelectionFont = new System.Drawing.Font(
+                        conversationTextBox.Font.FontFamily,
+                        conversationTextBox.Font.Size,
+                        System.Drawing.FontStyle.Italic
+                    );
+                }
+            }
+
+            // Resetar seleção
+            conversationTextBox.Select(conversationTextBox.Text.Length, 0);
         }
 
         private void AtualizarStatus()
@@ -248,8 +420,10 @@ namespace TraducaoTIME.UI
             isTranscribing = true;
             if (buttonIniciar != null) buttonIniciar.Enabled = false;
             if (buttonParar != null) buttonParar.Enabled = true;
-            
-            // Limpar texto anterior
+
+            // Limpar histórico e texto anterior
+            _finalizedLines.Clear();
+            _currentInterimText = "";
             if (conversationTextBox != null)
                 conversationTextBox.Clear();
 
@@ -288,7 +462,7 @@ namespace TraducaoTIME.UI
                     }));
                 }
             });
-            
+
             transcriptionThread.IsBackground = true;
             transcriptionThread.Start();
         }
@@ -298,12 +472,12 @@ namespace TraducaoTIME.UI
             isTranscribing = false;
             if (buttonIniciar != null) buttonIniciar.Enabled = true;
             if (buttonParar != null) buttonParar.Enabled = false;
-            
+
             // Parar as transcrições
             TraducaoTIME.Features.TranscricaoSemDiarizacao.TranscricaoSemDiarizacao.Parar();
             TraducaoTIME.Features.TranscricaoComDiarizacao.TranscricaoComDiarizacao.Parar();
             TraducaoTIME.Features.CapturaAudio.CapturaAudio.Parar();
-            
+
             // Tentar parar a thread se estiver rodando
             if (transcriptionThread != null && transcriptionThread.IsAlive)
             {

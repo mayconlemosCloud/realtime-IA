@@ -32,7 +32,7 @@ namespace TraducaoTIME.Features.CapturaAudio
 
             Console.WriteLine("🎤 Capturando áudio...\n");
             _shouldStop = false;
-            
+
             // Aguardar até que a captura seja parada
             while (!_shouldStop)
             {

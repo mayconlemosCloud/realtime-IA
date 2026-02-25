@@ -11,9 +11,17 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
 {
     public class TranscricaoComDiarizacao
     {
-        // Callback para enviar texto para a UI
-        public static Action<string>? OnTranscriptionReceived { get; set; }
-        
+        // Callback para enviar texto para a UI - ambos string e TranscriptionSegment
+        public static Action<string>? OnTranscriptionReceivedString { get; set; }
+        public static Action<TranscriptionSegment>? OnTranscriptionReceivedSegment { get; set; }
+
+        // Para manter compatibilidade, chamamos o método helper
+        public static Action<string>? OnTranscriptionReceived
+        {
+            get { return OnTranscriptionReceivedString; }
+            set { OnTranscriptionReceivedString = value; }
+        }
+
         // Flag para controlar a transcrição
         private static bool _shouldStop = false;
 
@@ -27,7 +35,8 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
 
                 if (string.IsNullOrWhiteSpace(azureKey) || string.IsNullOrWhiteSpace(azureRegion))
                 {
-                    OnTranscriptionReceived?.Invoke("❌ ERRO: Variáveis de ambiente não configuradas!");
+                    var errorSegment = new TranscriptionSegment("❌ ERRO: Variáveis de ambiente não configuradas!", isFinal: true);
+                    OnTranscriptionReceivedSegment?.Invoke(errorSegment);
                     return;
                 }
 
@@ -37,7 +46,8 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
                 speechConfig.OutputFormat = OutputFormat.Detailed;
                 speechConfig.SetProperty(PropertyId.SpeechServiceResponse_DiarizeIntermediateResults, "true");
 
-                OnTranscriptionReceived?.Invoke("✓ Diarização ativada\n");
+                var diarizationSegment = new TranscriptionSegment("Diarização ativada", isFinal: true);
+                OnTranscriptionReceivedSegment?.Invoke(diarizationSegment);
 
                 // Cria captura a partir do dispositivo selecionado
                 IWaveIn capture = device.DataFlow == DataFlow.Render
@@ -63,9 +73,14 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
                     // Para diarização, usamos ConversationTranscriber
                     using (var conversationTranscriber = new ConversationTranscriber(speechConfig, audioConfig))
                     {
-                        OnTranscriptionReceived?.Invoke("🎤 Iniciando captura e transcrição em tempo real COM DIARIZAÇÃO...");
-                        OnTranscriptionReceived?.Invoke($"Dispositivo: {device.FriendlyName}");
-                        OnTranscriptionReceived?.Invoke("Diarização: SIM\n");
+                        var startSegment = new TranscriptionSegment("Iniciando captura e transcrição em tempo real COM DIARIZAÇÃO...", isFinal: true);
+                        OnTranscriptionReceivedSegment?.Invoke(startSegment);
+
+                        var deviceSegment = new TranscriptionSegment($"Dispositivo: {device.FriendlyName}", isFinal: true);
+                        OnTranscriptionReceivedSegment?.Invoke(deviceSegment);
+
+                        var diarSegment = new TranscriptionSegment("Diarização: SIM", isFinal: true, isDiarization: true);
+                        OnTranscriptionReceivedSegment?.Invoke(diarSegment);
 
                         capture.StartRecording();
                         bool isFirst = true;
@@ -80,68 +95,51 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
                                 }
 
                                 string speakerId = !string.IsNullOrEmpty(e.Result.SpeakerId) ? e.Result.SpeakerId : "Unknown";
-                                string texto = $"[{speakerId}] {e.Result.Text}";
-                                OnTranscriptionReceived?.Invoke(texto);
-                                Console.WriteLine(texto);
-
-                                // Traduz em tempo real também
-                                try
-                                {
-                                    string textoTraduzido = await TranslatorService.TraduirTexto(e.Result.Text);
-                                    OnTranscriptionReceived?.Invoke($"🌐 {textoTraduzido}");
-                                    Console.WriteLine($"🌐 {textoTraduzido}\n");
-                                }
-                                catch
-                                {
-                                    // Silencia erro de tradução parcial
-                                }
+                                // Enviar como interim (não final)
+                                var segment = new TranscriptionSegment(e.Result.Text, isFinal: false, speaker: $"Pessoa {speakerId}", isDiarization: true);
+                                OnTranscriptionReceivedSegment?.Invoke(segment);
+                                Console.WriteLine($"[Interim] [{speakerId}] {e.Result.Text}");
                             }
                         };
 
                         conversationTranscriber.Transcribed += async (s, e) =>
                         {
-                            if (e.Result.Reason == ResultReason.RecognizedSpeech && !string.IsNullOrWhiteSpace(e.Result.Text))
+                            Console.WriteLine($"[DEBUG] Transcribed: {e.Result.Text} | Reason: {e.Result.Reason}");
+                            
+                            // Aceitar qualquer resultado não vazio como final
+                            if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {
                                 string speakerId = !string.IsNullOrEmpty(e.Result.SpeakerId) ? e.Result.SpeakerId : "Unknown";
 
-                                // Exibe texto final
-                                string texto = $"👤 [{speakerId}] {e.Result.Text}";
-                                OnTranscriptionReceived?.Invoke(texto);
-                                Console.WriteLine(texto);
-
-                                // Traduz para PT-BR
-                                try
-                                {
-                                    string textoTraduzido = await TranslatorService.TraduirTexto(e.Result.Text);
-                                    string textoComTrad = $"🌐 [{speakerId}] {textoTraduzido}";
-                                    OnTranscriptionReceived?.Invoke(textoComTrad);
-                                    Console.WriteLine(textoComTrad + "\n");
-                                }
-                                catch
-                                {
-                                    OnTranscriptionReceived?.Invoke("⚠️  Erro na tradução");
-                                    Console.WriteLine($"⚠️  Erro na tradução\n");
-                                }
+                                // Enviar como final
+                                var segment = new TranscriptionSegment(e.Result.Text, isFinal: true, speaker: $"Pessoa {speakerId}", isDiarization: true);
+                                OnTranscriptionReceivedSegment?.Invoke(segment);
+                                Console.WriteLine($"[Final] [{speakerId}] {e.Result.Text}");
+                            }
+                            else if (e.Result.Reason == ResultReason.NoMatch)
+                            {
+                                Console.WriteLine($"[DEBUG] NoMatch (silêncio detectado)");
                             }
                         };
 
                         conversationTranscriber.Canceled += (s, e) =>
                         {
                             var cancellation = CancellationDetails.FromResult(e.Result);
-                            OnTranscriptionReceived?.Invoke($"❌ ERRO: {cancellation.ErrorDetails}");
+                            var errorSegment = new TranscriptionSegment($"❌ ERRO: {cancellation.ErrorDetails}", isFinal: true);
+                            OnTranscriptionReceivedSegment?.Invoke(errorSegment);
                             Console.WriteLine($"\n❌ ERRO: {cancellation.ErrorDetails}");
                         };
 
                         _shouldStop = false;
                         await conversationTranscriber.StartTranscribingAsync();
                         Console.WriteLine("[DEBUG] Transcrição iniciada CSS - aguardando parada");
-                        
+
                         // Aguardar até que a transcrição seja parada
                         while (!_shouldStop)
                         {
                             await Task.Delay(100);
                         }
-                        
+
                         await conversationTranscriber.StopTranscribingAsync();
                         capture.StopRecording();
                     }
@@ -150,7 +148,9 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
             catch (Exception ex)
             {
                 string erro = $"❌ ERRO: {ex.Message}";
-                OnTranscriptionReceived?.Invoke(erro);
+                var errorSegment = new TranscriptionSegment(erro, isFinal: true);
+                OnTranscriptionReceivedSegment?.Invoke(errorSegment);
+                OnTranscriptionReceivedString?.Invoke(erro);
                 Console.WriteLine(erro);
             }
         }

@@ -40,10 +40,10 @@ namespace TraducaoTIME.Utils
             {
                 var devices = AudioDeviceSelector.GetDispositivosDisponiveis();
                 var device = devices.FirstOrDefault(d => d.FriendlyName == _selectedDeviceName);
-                
+
                 if (device != null)
                     return device;
-                
+
                 // Se não encontrar, retorna o primeiro disponível
                 return devices.FirstOrDefault() ?? throw new InvalidOperationException("Nenhum dispositivo de áudio disponível");
             }
