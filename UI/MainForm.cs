@@ -31,6 +31,9 @@ namespace TraducaoTIME.UI
         // Referência para a janela IA
         private AIForm? _iaForm;
 
+        // Gerenciador de histórico em arquivo TXT
+        private HistoryManager? _historyManager;
+
         public MainForm()
         {
             // Configurações básicas da janela
@@ -40,6 +43,9 @@ namespace TraducaoTIME.UI
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.Sizable;
             this.MinimumSize = new System.Drawing.Size(400, 300);
+
+            // Inicializar gerenciador de histórico
+            _historyManager = HistoryManager.Instance;
 
             // Adicionar margens nas laterais para não cortar o conteúdo
 
@@ -263,6 +269,13 @@ namespace TraducaoTIME.UI
 
                     _finalizedLines.Add(textToAdd);
                     Console.WriteLine($"[UI] [FINAL] ADICIONADO: '{textToAdd}' | Total linhas: {_finalizedLines.Count}");
+
+                    // Salvar no arquivo de histórico
+                    if (_historyManager != null)
+                    {
+                        string speaker = !string.IsNullOrWhiteSpace(segment.Speaker) ? segment.Speaker : "Participante";
+                        _historyManager.AddMessage(speaker, segment.Text);
+                    }
                 }
 
                 // Limpar interim para a próxima frase
