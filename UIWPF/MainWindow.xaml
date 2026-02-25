@@ -94,10 +94,15 @@
                                                     <TextBlock Text="✓ "
                                                                Foreground="#00FF00"
                                                                FontWeight="Bold"
-                                                               Margin="0,0,5,0"/>
-                                                    <TextBlock Text="{Binding DisplayText}"
-                                                               Foreground="White"
-                                                               TextWrapping="Wrap"/>
+                                                               Margin="0,0,5,0"
+                                                               VerticalAlignment="Top"/>
+                                                    <TextBox Text="{Binding DisplayText, Mode=OneWay}"
+                                                             Foreground="White"
+                                                             Background="#2D2D2D"
+                                                             BorderThickness="0"
+                                                             IsReadOnly="True"
+                                                             TextWrapping="Wrap"
+                                                             VerticalScrollBarVisibility="Auto"/>
                                                 </StackPanel>
                                                 <Button Grid.Column="1"
                                                         Content="👆"
@@ -122,11 +127,13 @@
                                                                Foreground="#AAAAAA"
                                                                FontSize="11"
                                                                Margin="0,5,0,3"/>
-                                                    <TextBlock Text="{Binding EnglishSuggestion}"
-                                                               Foreground="#888888"
-                                                               FontStyle="Italic"
-                                                               TextWrapping="Wrap"
-                                                               Margin="10,0,0,5"/>
+                                                    <TextBox Text="{Binding EnglishSuggestion, Mode=OneWay}"
+                                                             Foreground="#888888"
+                                                             Background="#2D2D2D"
+                                                             BorderThickness="0"
+                                                             IsReadOnly="True"
+                                                             TextWrapping="Wrap"
+                                                             Margin="10,0,0,5"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </StackPanel>
