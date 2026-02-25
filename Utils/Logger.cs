@@ -14,14 +14,14 @@ namespace TraducaoTIME.Utils
             // Criar log na pasta do projeto
             string projectFolder = AppDomain.CurrentDomain.BaseDirectory;
             string logFolder = Path.Combine(projectFolder, "Logs");
-            
+
             if (!Directory.Exists(logFolder))
             {
                 Directory.CreateDirectory(logFolder);
             }
 
             _logFilePath = Path.Combine(logFolder, $"transacao_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log");
-            
+
             // Escrever header do log
             WriteToFile($"========== LOG INICIADO - {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==========\n");
             WriteToFile($"Executável: {Process.GetCurrentProcess().MainModule?.FileName}\n");
@@ -42,7 +42,7 @@ namespace TraducaoTIME.Utils
 
         public static void Error(string message, Exception? ex = null)
         {
-            string fullMessage = ex != null 
+            string fullMessage = ex != null
                 ? $"{message}\n  Exception: {ex.GetType().Name}: {ex.Message}\n  StackTrace:\n{ex.StackTrace}"
                 : message;
             Write("ERROR", fullMessage);
@@ -56,10 +56,10 @@ namespace TraducaoTIME.Utils
         private static void Write(string level, string message)
         {
             string logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level.PadRight(7)}] {message}";
-            
+
             // Escrever no console também
             Console.WriteLine(logMessage);
-            
+
             // Escrever no arquivo
             WriteToFile(logMessage + "\n");
         }

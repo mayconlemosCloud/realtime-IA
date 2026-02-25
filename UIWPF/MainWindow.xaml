@@ -10,26 +10,26 @@
         <!-- Menu -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="CONFIG"
-                    Click="ConfigMenu_Click"/>
+                      Click="ConfigMenu_Click"/>
             <MenuItem Header="IA"
-                    Click="IAMenu_Click"/>
+                      Click="IAMenu_Click"/>
         </Menu>
 
         <!-- Status Bar -->
         <StatusBar DockPanel.Dock="Bottom"
-                Name="statusBar">
+                   Name="statusBar">
             <StatusBarItem>
                 <TextBlock Name="statusLabel"
-                        Text="Pronto"/>
+                           Text="Pronto"/>
             </StatusBarItem>
         </StatusBar>
 
         <!-- Botões de Controle -->
         <StackPanel DockPanel.Dock="Top"
-                Orientation="Horizontal"
-                Background="#282828"
-                Margin="10"
-                VerticalAlignment="Center">
+                    Orientation="Horizontal"
+                    Background="#282828"
+                    Margin="10"
+                    VerticalAlignment="Center">
             <Button Name="buttonIniciar"
                     Content="Iniciar Transcrição"
                     Click="ButtonIniciar_Click"
@@ -63,17 +63,17 @@
                     Margin="10">
                 <DockPanel>
                     <Label DockPanel.Dock="Top"
-                            Content="✓ Frases Finalizadas"
-                            Background="#1E1E1E"
-                            Foreground="#00FF00"
-                            FontWeight="Bold"
-                            Padding="5"/>
+                           Content="✓ Frases Finalizadas"
+                           Background="#1E1E1E"
+                           Foreground="#00FF00"
+                           FontWeight="Bold"
+                           Padding="5"/>
                     <ScrollViewer DockPanel.Dock="Top"
-                            VerticalScrollBarVisibility="Auto">
+                                  VerticalScrollBarVisibility="Auto">
                         <ItemsControl Name="FinalizedLinesItemsControl"
-                                ItemsSource="{Binding FinalizedLines}"
-                                Background="#1E1E1E"
-                                Padding="5">
+                                      ItemsSource="{Binding FinalizedLines}"
+                                      Background="#1E1E1E"
+                                      Padding="5">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border BorderBrush="#333"
@@ -88,14 +88,14 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0"
-                                                        Orientation="Horizontal">
+                                                            Orientation="Horizontal">
                                                     <TextBlock Text="✓ "
-                                                            Foreground="#00FF00"
-                                                            FontWeight="Bold"
-                                                            Margin="0,0,5,0"/>
+                                                               Foreground="#00FF00"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,5,0"/>
                                                     <TextBlock Text="{Binding DisplayText}"
-                                                            Foreground="White"
-                                                            TextWrapping="Wrap"/>
+                                                               Foreground="White"
+                                                               TextWrapping="Wrap"/>
                                                 </StackPanel>
                                                 <Button Grid.Column="1"
                                                         Content="👆"
@@ -111,20 +111,20 @@
                                             <StackPanel Margin="20,5,0,0">
                                                 <!-- Loading -->
                                                 <TextBlock Text="⏳ Gerando sugestão..."
-                                                        Foreground="#888888"
-                                                        FontStyle="Italic"/>
+                                                           Foreground="#888888"
+                                                           FontStyle="Italic"/>
 
                                                 <!-- Sugestão -->
                                                 <StackPanel Margin="0,5,0,0">
                                                     <TextBlock Text="💬 English Suggestion:"
-                                                            Foreground="#AAAAAA"
-                                                            FontSize="11"
-                                                            Margin="0,5,0,3"/>
+                                                               Foreground="#AAAAAA"
+                                                               FontSize="11"
+                                                               Margin="0,5,0,3"/>
                                                     <TextBlock Text="{Binding EnglishSuggestion}"
-                                                            Foreground="#888888"
-                                                            FontStyle="Italic"
-                                                            TextWrapping="Wrap"
-                                                            Margin="10,0,0,5"/>
+                                                               Foreground="#888888"
+                                                               FontStyle="Italic"
+                                                               TextWrapping="Wrap"
+                                                               Margin="10,0,0,5"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </StackPanel>
@@ -138,10 +138,10 @@
 
             <!-- Splitter -->
             <GridSplitter Grid.Row="1"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Stretch"
-                    Background="#444"
-                    ShowsPreview="True"/>
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="#444"
+                          ShowsPreview="True"/>
 
             <!-- Painel 2: Transcrição em Andamento -->
             <Border Grid.Row="2"
@@ -150,15 +150,15 @@
                     Margin="10">
                 <DockPanel>
                     <Label DockPanel.Dock="Top"
-                            Content="⟳ Transcrição em Andamento"
-                            Background="#1E1E1E"
-                            Foreground="#FFA500"
-                            FontWeight="Bold"
-                            Padding="5"/>
+                           Content="⟳ Transcrição em Andamento"
+                           Background="#1E1E1E"
+                           Foreground="#FFA500"
+                           FontWeight="Bold"
+                           Padding="5"/>
                     <RichTextBox Name="transcriptionTextBox"
-                            IsReadOnly="True"
-                            Background="#1E1E1E"
-                            Foreground="#FFD700"/>
+                                 IsReadOnly="True"
+                                 Background="#1E1E1E"
+                                 Foreground="#FFD700"/>
                 </DockPanel>
             </Border>
         </Grid>

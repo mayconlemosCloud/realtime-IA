@@ -20,9 +20,9 @@ namespace TraducaoTIME
             {
                 // Alocar console para debug
                 AllocConsole();
-                
+
                 Logger.Info("===== APLICAÇÃO INICIADA =====");
-                
+
                 // Carregar variáveis do arquivo .env
                 Logger.Info("Carregando variáveis de ambiente (.env)...");
                 DotEnv.Load();
@@ -39,7 +39,7 @@ namespace TraducaoTIME
                 Logger.Info("Executando aplicação...");
                 // Executar aplicação
                 app.Run(mainWindow);
-                
+
                 Logger.Info("Aplicação finalizada com sucesso");
             }
             catch (Exception ex)
