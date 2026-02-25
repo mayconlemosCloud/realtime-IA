@@ -207,8 +207,13 @@ namespace TraducaoTIME.UI
                 // FINAL: Adicionar o texto confirmado às linhas finalizadas
                 if (!string.IsNullOrWhiteSpace(segment.Text))
                 {
-                    _finalizedLines.Add(segment.Text);
-                    Console.WriteLine($"[UI] [FINAL] ADICIONADO: '{segment.Text}' | Total linhas: {_finalizedLines.Count}");
+                    // Incluir o speaker se disponível
+                    string textToAdd = !string.IsNullOrWhiteSpace(segment.Speaker)
+                        ? $"{segment.Speaker}: {segment.Text}"
+                        : segment.Text;
+
+                    _finalizedLines.Add(textToAdd);
+                    Console.WriteLine($"[UI] [FINAL] ADICIONADO: '{textToAdd}' | Total linhas: {_finalizedLines.Count}");
                 }
 
                 // Limpar interim para a próxima frase
@@ -220,8 +225,12 @@ namespace TraducaoTIME.UI
                 // INTERIM: Atualizar o texto que está crescendo
                 if (!string.IsNullOrWhiteSpace(segment.Text))
                 {
-                    _currentInterimText = segment.Text;
-                    Console.WriteLine($"[UI] [INTERIM] ATUALIZADO: '{segment.Text}'");
+                    // Incluir o speaker se disponível
+                    _currentInterimText = !string.IsNullOrWhiteSpace(segment.Speaker)
+                        ? $"{segment.Speaker}: {segment.Text}"
+                        : segment.Text;
+
+                    Console.WriteLine($"[UI] [INTERIM] ATUALIZADO: '{_currentInterimText}'");
                 }
             }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
@@ -24,6 +25,11 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
 
         // Flag para controlar a transcrição
         private static bool _shouldStop = false;
+        
+        // Rastreamento de falantes para evitar confusão
+        private static Dictionary<string, string> _speakerIdMap = new Dictionary<string, string>();
+        private static int _speakerCount = 0;
+        private static string _lastSpokerId = "";
 
         public static async Task Executar(MMDevice device)
         {
@@ -44,7 +50,16 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
                 var speechConfig = SpeechConfig.FromSubscription(azureKey, azureRegion);
                 speechConfig.SpeechRecognitionLanguage = "pt-BR";
                 speechConfig.OutputFormat = OutputFormat.Detailed;
+                
+                // Otimizações para melhor diarização
                 speechConfig.SetProperty(PropertyId.SpeechServiceResponse_DiarizeIntermediateResults, "true");
+                
+                // Habilitar detalhes adicionais para melhor identificação de falante
+                speechConfig.SetProperty(PropertyId.Speech_SegmentationSilenceTimeoutMs, "500"); // Detecta pausas de 500ms
+                
+                // Log das configurações
+                var configSegment = new TranscriptionSegment("⚙️ Otimizações: Diarização + Segmentação habilitada", isFinal: true);
+                OnTranscriptionReceivedSegment?.Invoke(configSegment);
 
                 var diarizationSegment = new TranscriptionSegment("Diarização ativada", isFinal: true);
                 OnTranscriptionReceivedSegment?.Invoke(diarizationSegment);
@@ -70,16 +85,21 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
 
                 using (audioConfig)
                 {
+                    // Resetar mapa de falantes para nova sessão
+                    _speakerIdMap.Clear();
+                    _speakerCount = 0;
+                    _lastSpokerId = "";
+                    
                     // Para diarização, usamos ConversationTranscriber
                     using (var conversationTranscriber = new ConversationTranscriber(speechConfig, audioConfig))
                     {
-                        var startSegment = new TranscriptionSegment("Iniciando captura e transcrição em tempo real COM DIARIZAÇÃO...", isFinal: true);
+                        var startSegment = new TranscriptionSegment("🎤 Iniciando captura COM DIARIZAÇÃO OTIMIZADA...", isFinal: true);
                         OnTranscriptionReceivedSegment?.Invoke(startSegment);
 
-                        var deviceSegment = new TranscriptionSegment($"Dispositivo: {device.FriendlyName}", isFinal: true);
+                        var deviceSegment = new TranscriptionSegment($"📱 Dispositivo: {device.FriendlyName}", isFinal: true);
                         OnTranscriptionReceivedSegment?.Invoke(deviceSegment);
 
-                        var diarSegment = new TranscriptionSegment("Diarização: SIM", isFinal: true, isDiarization: true);
+                        var diarSegment = new TranscriptionSegment("✅ Diarização: SIM | Segmentação: ativada", isFinal: true, isDiarization: true);
                         OnTranscriptionReceivedSegment?.Invoke(diarSegment);
 
                         capture.StartRecording();
@@ -95,30 +115,41 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
                                 }
 
                                 string speakerId = !string.IsNullOrEmpty(e.Result.SpeakerId) ? e.Result.SpeakerId : "Unknown";
+                                string displayName = GetOrMapSpeaker(speakerId);
+                                
+                                // Log detalhado para debug
+                                Console.WriteLine($"[INTERIM] SpeakerId={speakerId} | Mapeado={displayName} | Confiança={e.Result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult)}");
+                                Console.WriteLine($"[INTERIM] Texto: {e.Result.Text}");
+                                
                                 // Enviar como interim (não final)
-                                var segment = new TranscriptionSegment(e.Result.Text, isFinal: false, speaker: $"Pessoa {speakerId}", isDiarization: true);
+                                var segment = new TranscriptionSegment(e.Result.Text, isFinal: false, speaker: displayName, isDiarization: true);
                                 OnTranscriptionReceivedSegment?.Invoke(segment);
-                                Console.WriteLine($"[Interim] [{speakerId}] {e.Result.Text}");
                             }
                         };
 
                         conversationTranscriber.Transcribed += async (s, e) =>
                         {
-                            Console.WriteLine($"[DEBUG] Transcribed: {e.Result.Text} | Reason: {e.Result.Reason}");
-
                             // Aceitar qualquer resultado não vazio como final
                             if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {
                                 string speakerId = !string.IsNullOrEmpty(e.Result.SpeakerId) ? e.Result.SpeakerId : "Unknown";
+                                string displayName = GetOrMapSpeaker(speakerId);
+                                
+                                // Log detalhado com informações de resultado
+                                Console.WriteLine($"\n[FINAL] SpeakerId={speakerId} | Mapeado={displayName} | Reason={e.Result.Reason}");
+                                Console.WriteLine($"[FINAL] Texto: {e.Result.Text}");
+                                Console.WriteLine($"[FINAL] Falante anterior: {_lastSpokerId}");
+                                
+                                // Atualizar último falante para rastreamento
+                                _lastSpokerId = speakerId;
 
                                 // Enviar como final
-                                var segment = new TranscriptionSegment(e.Result.Text, isFinal: true, speaker: $"Pessoa {speakerId}", isDiarization: true);
+                                var segment = new TranscriptionSegment(e.Result.Text, isFinal: true, speaker: displayName, isDiarization: true);
                                 OnTranscriptionReceivedSegment?.Invoke(segment);
-                                Console.WriteLine($"[Final] [{speakerId}] {e.Result.Text}");
                             }
                             else if (e.Result.Reason == ResultReason.NoMatch)
                             {
-                                Console.WriteLine($"[DEBUG] NoMatch (silêncio detectado)");
+                                Console.WriteLine($"[INFO] Silêncio ou áudio não reconhecido");
                             }
                         };
 
@@ -158,6 +189,29 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
         public static void Parar()
         {
             _shouldStop = true;
+            _speakerIdMap.Clear();
+            _speakerCount = 0;
+        }
+        
+        // Método auxiliar para mapear Speaker IDs do Azure para números consistentes
+        private static string GetOrMapSpeaker(string speakerId)
+        {
+            if (speakerId == "Unknown" || string.IsNullOrEmpty(speakerId))
+                return "Pessoa desconhecida";
+            
+            // Se já mapeamos este ID, retornar o mapeamento existente
+            if (_speakerIdMap.ContainsKey(speakerId))
+            {
+                return _speakerIdMap[speakerId];
+            }
+            
+            // Novo falante! Criar novo mapeamento
+            _speakerCount++;
+            string displayName = $"Pessoa {_speakerCount}";
+            _speakerIdMap[speakerId] = displayName;
+            
+            Console.WriteLine($"[NOVO FALANTE] Id Azure={speakerId} -> {displayName}");
+            return displayName;
         }
     }
 }
