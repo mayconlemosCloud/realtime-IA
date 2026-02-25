@@ -1,0 +1,166 @@
+<Window x:Class="TraducaoTIME.UIWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tradução TIME"
+        Height="600"
+        Width="800"
+        WindowStartupLocation="CenterScreen"
+        Background="#2D2D2D">
+    <DockPanel>
+        <!-- Menu -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="CONFIG"
+                    Click="ConfigMenu_Click"/>
+            <MenuItem Header="IA"
+                    Click="IAMenu_Click"/>
+        </Menu>
+
+        <!-- Status Bar -->
+        <StatusBar DockPanel.Dock="Bottom"
+                Name="statusBar">
+            <StatusBarItem>
+                <TextBlock Name="statusLabel"
+                        Text="Pronto"/>
+            </StatusBarItem>
+        </StatusBar>
+
+        <!-- Botões de Controle -->
+        <StackPanel DockPanel.Dock="Top"
+                Orientation="Horizontal"
+                Background="#282828"
+                Margin="10"
+                VerticalAlignment="Center">
+            <Button Name="buttonIniciar"
+                    Content="Iniciar Transcrição"
+                    Click="ButtonIniciar_Click"
+                    Padding="15,10"
+                    Margin="5"
+                    Background="#0078D4"
+                    Foreground="White"
+                    FontWeight="Bold"/>
+            <Button Name="buttonParar"
+                    Content="Parar Transcrição"
+                    Click="ButtonParar_Click"
+                    Padding="15,10"
+                    Margin="5"
+                    Background="#D63031"
+                    Foreground="White"
+                    FontWeight="Bold"/>
+        </StackPanel>
+
+        <!-- Main Grid com Splitter -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="5"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Painel 1: Frases Finalizadas (ItemsControl) -->
+            <Border Grid.Row="0"
+                    BorderBrush="#444"
+                    BorderThickness="1"
+                    Margin="10">
+                <DockPanel>
+                    <Label DockPanel.Dock="Top"
+                            Content="✓ Frases Finalizadas"
+                            Background="#1E1E1E"
+                            Foreground="#00FF00"
+                            FontWeight="Bold"
+                            Padding="5"/>
+                    <ScrollViewer DockPanel.Dock="Top"
+                            VerticalScrollBarVisibility="Auto">
+                        <ItemsControl Name="FinalizedLinesItemsControl"
+                                ItemsSource="{Binding FinalizedLines}"
+                                Background="#1E1E1E"
+                                Padding="5">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#333"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="5"
+                                            Margin="0,5">
+                                        <StackPanel>
+                                            <!-- Texto da frase + Botão 👆 -->
+                                            <Grid Margin="0,0,0,5">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0"
+                                                        Orientation="Horizontal">
+                                                    <TextBlock Text="✓ "
+                                                            Foreground="#00FF00"
+                                                            FontWeight="Bold"
+                                                            Margin="0,0,5,0"/>
+                                                    <TextBlock Text="{Binding DisplayText}"
+                                                            Foreground="White"
+                                                            TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1"
+                                                        Content="👆"
+                                                        Foreground="White"
+                                                        Background="Transparent"
+                                                        Padding="10,5"
+                                                        Click="GenerateSuggestion_Click"
+                                                        Tag="{Binding}"
+                                                        HorizontalAlignment="Right"/>
+                                            </Grid>
+
+                                            <!-- Sugestão em Inglês (Sem Bindings complexos) -->
+                                            <StackPanel Margin="20,5,0,0">
+                                                <!-- Loading -->
+                                                <TextBlock Text="⏳ Gerando sugestão..."
+                                                        Foreground="#888888"
+                                                        FontStyle="Italic"/>
+
+                                                <!-- Sugestão -->
+                                                <StackPanel Margin="0,5,0,0">
+                                                    <TextBlock Text="💬 English Suggestion:"
+                                                            Foreground="#AAAAAA"
+                                                            FontSize="11"
+                                                            Margin="0,5,0,3"/>
+                                                    <TextBlock Text="{Binding EnglishSuggestion}"
+                                                            Foreground="#888888"
+                                                            FontStyle="Italic"
+                                                            TextWrapping="Wrap"
+                                                            Margin="10,0,0,5"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Row="1"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    Background="#444"
+                    ShowsPreview="True"/>
+
+            <!-- Painel 2: Transcrição em Andamento -->
+            <Border Grid.Row="2"
+                    BorderBrush="#444"
+                    BorderThickness="1"
+                    Margin="10">
+                <DockPanel>
+                    <Label DockPanel.Dock="Top"
+                            Content="⟳ Transcrição em Andamento"
+                            Background="#1E1E1E"
+                            Foreground="#FFA500"
+                            FontWeight="Bold"
+                            Padding="5"/>
+                    <RichTextBox Name="transcriptionTextBox"
+                            IsReadOnly="True"
+                            Background="#1E1E1E"
+                            Foreground="#FFD700"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

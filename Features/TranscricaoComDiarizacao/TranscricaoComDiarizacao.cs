@@ -146,9 +146,16 @@ namespace TraducaoTIME.Features.TranscricaoComDiarizacao
                 // Conecta os eventos do WaveIn ao PushStream
                 capture.DataAvailable += (sender, e) =>
                 {
-                    byte[] buffer = new byte[e.BytesRecorded];
-                    Array.Copy(e.Buffer, 0, buffer, 0, e.BytesRecorded);
-                    pushStream.Write(buffer);
+                    try
+                    {
+                        byte[] buffer = new byte[e.BytesRecorded];
+                        Array.Copy(e.Buffer, 0, buffer, 0, e.BytesRecorded);
+                        pushStream.Write(buffer);
+                    }
+                    catch (Exception exEvent)
+                    {
+                        Logger.Error($"Erro em DataAvailable: {exEvent.Message}", exEvent);
+                    }
                 };
 
                 using (audioConfigForCapture)

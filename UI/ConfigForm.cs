@@ -79,6 +79,7 @@ namespace TraducaoTIME.UI
             try
             {
                 var dispositivos = AudioDeviceSelector.GetDispositivosDisponiveis();
+                if (comboBoxDispositivo == null) return;
                 comboBoxDispositivo.Items.Clear();
 
                 int selectedIndex = 0;
@@ -105,7 +106,8 @@ namespace TraducaoTIME.UI
         private void ComboBoxTranscricao_SelectedIndexChanged(object sender, EventArgs e)
         {
             // Armazena na configuração (opção 1, 2 ou 3)
-            AppConfig.Instance.SelectedOption = (comboBoxTranscricao.SelectedIndex + 1).ToString();
+            if (comboBoxTranscricao?.SelectedIndex >= 0)
+                AppConfig.Instance.SelectedOption = (comboBoxTranscricao.SelectedIndex + 1).ToString();
         }
 
         private void ComboBoxDispositivo_SelectedIndexChanged(object sender, EventArgs e)
@@ -114,7 +116,7 @@ namespace TraducaoTIME.UI
             try
             {
                 var dispositivos = AudioDeviceSelector.GetDispositivosDisponiveis();
-                if (comboBoxDispositivo.SelectedIndex >= 0 && comboBoxDispositivo.SelectedIndex < dispositivos.Count)
+                if (comboBoxDispositivo != null && comboBoxDispositivo.SelectedIndex >= 0 && comboBoxDispositivo.SelectedIndex < dispositivos.Count)
                 {
                     AppConfig.Instance.SelectedDeviceName = dispositivos[comboBoxDispositivo.SelectedIndex].FriendlyName;
                 }

@@ -1,46 +1,57 @@
 using System;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.Runtime.InteropServices;
+using System.Windows;
 using dotenv.net;
-using TraducaoTIME.UI;
+using TraducaoTIME.UIWPF;
 using TraducaoTIME.Utils;
-using TraducaoTIME.Features.TranscricaoSemDiarizacao;
-using TraducaoTIME.Features.TranscricaoComDiarizacao;
-using TraducaoTIME.Features.CapturaAudio;
 
-class Program
+namespace TraducaoTIME
 {
-    // Importar a função para alocar console
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool AllocConsole();
-
-    [STAThread]
-    static void Main()
+    class Program
     {
-        // Carregar variáveis do arquivo .env
-        DotEnv.Load();
+        // Importar a função para alocar console
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool AllocConsole();
 
-        // Alocar console para debug
-        AllocConsole();
+        [STAThread]
+        public static void Main(string[] args)
+        {
+            try
+            {
+                // Alocar console para debug
+                AllocConsole();
+                
+                Logger.Info("===== APLICAÇÃO INICIADA =====");
+                
+                // Carregar variáveis do arquivo .env
+                Logger.Info("Carregando variáveis de ambiente (.env)...");
+                DotEnv.Load();
+                Logger.Info("Variáveis de ambiente carregadas com sucesso");
 
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
+                Logger.Info("Criando aplicação WPF...");
+                // Criar aplicação WPF
+                App app = new App();
 
-        // Criar a janela
-        MainForm form = new MainForm();
+                Logger.Info("Criando janela principal...");
+                // Criar janela principal
+                MainWindow mainWindow = new MainWindow();
 
-        // Conectar o callback da transcrição à MainForm usando o novo sistema de segments
-        TranscricaoSemDiarizacao.OnTranscriptionReceivedSegment = (segment) => form.ShowTranslation(segment);
-        TranscricaoComDiarizacao.OnTranscriptionReceivedSegment = (segment) => form.ShowTranslation(segment);
-
-        // Passar referência de transcrição para MainForm
-        form.SetTranscriptionCallbacks(
-            (device) => TranscricaoSemDiarizacao.Executar(device),
-            (device) => TranscricaoComDiarizacao.Executar(device)
-        );
-
-        // Mostrar a janela
-        Application.Run(form);
+                Logger.Info("Executando aplicação...");
+                // Executar aplicação
+                app.Run(mainWindow);
+                
+                Logger.Info("Aplicação finalizada com sucesso");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("ERRO FATAL NA APLICAÇÃO", ex);
+                System.Windows.MessageBox.Show(
+                    $"Erro fatal:\n{ex.GetType().Name}: {ex.Message}\n\nVerifique o arquivo de log para mais detalhes.",
+                    "Erro Crítico",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
+            }
+        }
     }
 }

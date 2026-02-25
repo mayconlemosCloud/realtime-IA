@@ -731,5 +731,28 @@ Keep the response to 2-3 sentences maximum.";
 
             return stats;
         }
+
+        /// <summary>
+        /// Versão async que gera sugestão em inglês para uma frase específica com contexto
+        /// </summary>
+        public async Task<string> GetEnglishSuggestionAsync(string phrase, string conversationContext)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    // Combinar frase atual com contexto
+                    string fullContent = $"Current phrase: {phrase}\n\nConversation context:\n{conversationContext}";
+
+                    // Chamar o método síncrono existente
+                    return AnalyzeConversationForEnglishSuggestion(fullContent);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AIService] Error in GetEnglishSuggestionAsync: {ex.Message}");
+                    return $"Error generating suggestion: {ex.Message}";
+                }
+            });
+        }
     }
 }

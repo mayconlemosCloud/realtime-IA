@@ -6,9 +6,10 @@ namespace TraducaoTIME.Utils
 {
     public class HistoryManager
     {
+        private static readonly object _instanceLock = new object();
         private static HistoryManager? _instance;
         private string _historyFilePath;
-        private object _fileLock = new object();
+        private readonly object _fileLock = new object();
 
         public static HistoryManager Instance
         {
@@ -16,7 +17,13 @@ namespace TraducaoTIME.Utils
             {
                 if (_instance == null)
                 {
-                    _instance = new HistoryManager();
+                    lock (_instanceLock)
+                    {
+                        if (_instance == null)
+                        {
+                            _instance = new HistoryManager();
+                        }
+                    }
                 }
                 return _instance;
             }
@@ -24,24 +31,33 @@ namespace TraducaoTIME.Utils
 
         private HistoryManager()
         {
-            // Criar pasta Histórico se não existir
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string appFolder = Path.Combine(appDataPath, "TraducaoTIME");
-            string historyFolder = Path.Combine(appFolder, "Historico");
-
-            if (!Directory.Exists(historyFolder))
+            try
             {
-                Directory.CreateDirectory(historyFolder);
+                // Criar pasta Histórico se não existir
+                string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string appFolder = Path.Combine(appDataPath, "TraducaoTIME");
+                string historyFolder = Path.Combine(appFolder, "Historico");
+
+                if (!Directory.Exists(historyFolder))
+                {
+                    Directory.CreateDirectory(historyFolder);
+                }
+
+                // Criar arquivo de histórico com timestamp
+                string fileName = $"conversa_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt";
+                _historyFilePath = Path.Combine(historyFolder, fileName);
+
+                // Inicializar arquivo
+                InitializeFile();
+
+                Console.WriteLine($"[HistoryManager] Histórico iniciado: {_historyFilePath}");
             }
-
-            // Criar arquivo de histórico com timestamp
-            string fileName = $"conversa_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt";
-            _historyFilePath = Path.Combine(historyFolder, fileName);
-
-            // Inicializar arquivo
-            InitializeFile();
-
-            Console.WriteLine($"[HistoryManager] Histórico iniciado: {_historyFilePath}");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HistoryManager] ⚠️ Erro ao obter caminho de histórico: {ex.Message}");
+                // Fallback para pasta temporária
+                _historyFilePath = Path.Combine(Path.GetTempPath(), $"conversa_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt");
+            }
         }
 
         private void InitializeFile()
@@ -57,11 +73,12 @@ namespace TraducaoTIME.Utils
                         writer.WriteLine($"Data/Hora: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
                         writer.WriteLine($"═══════════════════════════════════════════════════════");
                         writer.WriteLine();
+                        writer.Flush();
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[HistoryManager] Erro ao inicializar arquivo: {ex.Message}");
+                    Console.WriteLine($"[HistoryManager] ⚠️ Erro ao inicializar arquivo: {ex.Message}");
                 }
             }
         }
@@ -78,17 +95,45 @@ namespace TraducaoTIME.Utils
             {
                 try
                 {
-                    using (StreamWriter writer = new StreamWriter(_historyFilePath, true, Encoding.UTF8))
+                    // Usar FileStream com acesso exclusivo reduzido
+                    using (var fileStream = new FileStream(_historyFilePath, FileMode.Append, FileAccess.Write, FileShare.Read))
+                    using (var writer = new StreamWriter(fileStream, Encoding.UTF8))
                     {
                         writer.WriteLine($"[{DateTime.Now:HH:mm:ss}] {speaker}:");
                         writer.WriteLine(message);
                         writer.WriteLine();
+                        writer.Flush();
                     }
-                    Console.WriteLine($"[HistoryManager] Mensagem adicionada: {speaker}");
+                    Console.WriteLine($"[HistoryManager] ✓ Mensagem adicionada: {speaker}");
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    Console.WriteLine($"[HistoryManager] ⚠️ ERRO de permissão ao adicionar mensagem: {ex.Message}");
+                }
+                catch (IOException ex)
+                {
+                    Console.WriteLine($"[HistoryManager] ⚠️ ERRO de I/O ao adicionar mensagem: {ex.Message}");
+                    // Tentar novamente após breve espera
+                    System.Threading.Thread.Sleep(50);
+                    try
+                    {
+                        using (var fileStream = new FileStream(_historyFilePath, FileMode.Append, FileAccess.Write, FileShare.Read))
+                        using (var writer = new StreamWriter(fileStream, Encoding.UTF8))
+                        {
+                            writer.WriteLine($"[{DateTime.Now:HH:mm:ss}] {speaker}:");
+                            writer.WriteLine(message);
+                            writer.WriteLine();
+                            writer.Flush();
+                        }
+                    }
+                    catch (Exception ex2)
+                    {
+                        Console.WriteLine($"[HistoryManager] ⚠️ Falha ao tentar novamente: {ex2.Message}");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[HistoryManager] Erro ao adicionar mensagem: {ex.Message}");
+                    Console.WriteLine($"[HistoryManager] ⚠️ Erro ao adicionar mensagem: {ex.GetType().Name}: {ex.Message}");
                 }
             }
         }

@@ -1,6 +1,7 @@
 using System;
 using NAudio.CoreAudioApi;
 using NAudio.Wave;
+using TraducaoTIME.Utils;
 
 namespace TraducaoTIME.Features.CapturaAudio
 {
@@ -10,6 +11,9 @@ namespace TraducaoTIME.Features.CapturaAudio
         private static byte[]? audioBuffer;
         private static int bufferPosition = 0;
         private static bool _shouldStop = false;
+
+        // Callback para enviar eventos para a UI
+        public static Action<TranscriptionSegment>? OnTranscriptionReceivedSegment { get; set; }
 
         public static void Executar(MMDevice device)
         {
