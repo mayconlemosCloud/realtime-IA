@@ -110,6 +110,52 @@ namespace TraducaoTIME.Utils
         }
 
         /// <summary>
+        /// Quebra linhas longas em múltiplas linhas para melhor legibilidade
+        /// </summary>
+        private string BreakLongLines(string text, int maxLength = 90)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return text;
+
+            var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            var result = new StringBuilder();
+
+            foreach (var line in lines)
+            {
+                if (line.Length <= maxLength)
+                {
+                    result.AppendLine(line);
+                }
+                else
+                {
+                    // Quebrar linhas longas em palavras
+                    var words = line.Split(' ');
+                    var currentLine = new StringBuilder();
+
+                    foreach (var word in words)
+                    {
+                        if ((currentLine.Length + word.Length + 1) > maxLength && currentLine.Length > 0)
+                        {
+                            result.AppendLine(currentLine.ToString());
+                            currentLine = new StringBuilder(word);
+                        }
+                        else
+                        {
+                            if (currentLine.Length > 0)
+                                currentLine.Append(" ");
+                            currentLine.Append(word);
+                        }
+                    }
+
+                    if (currentLine.Length > 0)
+                        result.AppendLine(currentLine.ToString());
+                }
+            }
+
+            return result.ToString();
+        }
+
+        /// <summary>
         /// Extrai palavras-chave de uma pergunta
         /// </summary>
         private List<string> ExtractKeywords(string question)
@@ -515,41 +561,29 @@ Responda de forma natural e conversacional, como se estivesse realmente conversa
         }
 
         /// <summary>
-        /// Analisa o histórico de conversa e fornece uma sugestão de resposta em inglês
+        /// Analisa o histórico de conversa e fornece uma sugestão de resposta em inglês com contexto em português
         /// </summary>
         public string AnalyzeConversationForEnglishSuggestion(string historyContent)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("[AIService] Gerando sugestão em inglês do histórico");
+                System.Diagnostics.Debug.WriteLine("[AIService] Gerando sugestão em inglês com análise de contexto");
 
                 if (string.IsNullOrWhiteSpace(historyContent))
                 {
                     return "⚠️ No conversation history available to analyze.";
                 }
 
-                // Criar um prompt específico para análise em inglês
-                string systemPrompt = @"You are a professional conversation analyst. 
-Based on the conversation history provided, generate a suggested professional response in English that:
-1. Addresses the main topics discussed
-2. Provides constructive feedback or next steps
-3. Is concise and professional
-4. Maintains a positive and collaborative tone
-
-Keep the response to 2-3 sentences maximum.";
-
-                string userPrompt = $"Analyze this conversation and provide a suggested response:\n\n{historyContent}";
-
                 // Tentar usar OpenAI se configurado
                 if (_apiProvider == "openai" && !string.IsNullOrWhiteSpace(_apiKey))
                 {
-                    System.Diagnostics.Debug.WriteLine("[AIService] Using OpenAI for English suggestion");
-                    return CallOpenAIForEnglishSuggestion(systemPrompt, userPrompt);
+                    System.Diagnostics.Debug.WriteLine("[AIService] Using OpenAI for English suggestion with context");
+                    return CallOpenAIForEnglishSuggestionWithContext(historyContent);
                 }
 
                 // Fallback para análise local em inglês
                 System.Diagnostics.Debug.WriteLine("[AIService] Using local analysis for English suggestion");
-                return GenerateLocalEnglishAnalysis(historyContent);
+                return GenerateLocalEnglishAnalysisWithContext(historyContent);
             }
             catch (Exception ex)
             {
@@ -559,7 +593,193 @@ Keep the response to 2-3 sentences maximum.";
         }
 
         /// <summary>
-        /// Chama OpenAI especificamente para sugestão em inglês
+        /// Chama OpenAI para gerar análise de contexto em português e sugestão em inglês
+        /// </summary>
+        private string CallOpenAIForEnglishSuggestionWithContext(string historyContent)
+        {
+            try
+            {
+                var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+                client.Timeout = TimeSpan.FromSeconds(30);
+
+                // Step 1: Gerar análise de contexto em português
+                string contextPrompt = @"Você é um analisador de conversas. Analise o histórico fornecido e responda APENAS em português:
+
+1. Qual é o contexto principal desta conversa?
+2. Qual tópico está sendo discusso?
+3. Por que essa pergunta foi feita?
+
+Responda de forma concisa em 2-3 linhas, explicando rapidamente qual contexto levou a essa conversa.";
+
+                var contextRequest = new
+                {
+                    model = "gpt-3.5-turbo",
+                    messages = new object[]
+                    {
+                        new { role = "system", content = "You are a Portuguese conversation analyst." },
+                        new { role = "user", content = $"{contextPrompt}\n\nHistórico:\n{historyContent}" }
+                    },
+                    temperature = 0.7,
+                    max_tokens = 200
+                };
+
+                var contextJson = System.Text.Json.JsonSerializer.Serialize(contextRequest);
+                var contextContent = new StringContent(contextJson, Encoding.UTF8, "application/json");
+                var contextResponse = client.PostAsync("https://api.openai.com/v1/chat/completions", contextContent).Result;
+
+                string contextAnalysis = "Contexto: ";
+                if (contextResponse.IsSuccessStatusCode)
+                {
+                    var contextResponseContent = contextResponse.Content.ReadAsStringAsync().Result;
+                    var contextJsonDoc = System.Text.Json.JsonDocument.Parse(contextResponseContent);
+                    var contextRoot = contextJsonDoc.RootElement;
+
+                    if (contextRoot.TryGetProperty("choices", out var contextChoices) && contextChoices.GetArrayLength() > 0)
+                    {
+                        var firstContextChoice = contextChoices[0];
+                        if (firstContextChoice.TryGetProperty("message", out var contextMessage))
+                        {
+                            if (contextMessage.TryGetProperty("content", out var contextContentProp))
+                            {
+                                contextAnalysis += contextContentProp.GetString() ?? "Análise indisponível";
+                            }
+                        }
+                    }
+                }
+
+                // Step 2: Gerar sugestão em inglês
+                string englishPrompt = @"You are a simple conversation analyst. 
+Based on this conversation, write a suggested response in A2 English (elementary/basic level) that:
+1. Says what you think about the main ideas
+2. Says what comes next
+3. Use very simple words and short sentences
+4. Show you understand and want to continue
+
+Write 2-3 very simple sentences. Use basic English (A2 level) - like a person learning English would speak. Simple words, short sentences.";
+
+                var englishRequest = new
+                {
+                    model = "gpt-3.5-turbo",
+                    messages = new object[]
+                    {
+                        new { role = "system", content = "You are a professional conversation analyst." },
+                        new { role = "user", content = $"{englishPrompt}\n\nConversation history:\n{historyContent}" }
+                    },
+                    temperature = 0.7,
+                    max_tokens = 300
+                };
+
+                var englishJson = System.Text.Json.JsonSerializer.Serialize(englishRequest);
+                var englishContent = new StringContent(englishJson, Encoding.UTF8, "application/json");
+                var englishResponse = client.PostAsync("https://api.openai.com/v1/chat/completions", englishContent).Result;
+
+                if (englishResponse.IsSuccessStatusCode)
+                {
+                    var englishResponseContent = englishResponse.Content.ReadAsStringAsync().Result;
+                    var englishJsonDoc = System.Text.Json.JsonDocument.Parse(englishResponseContent);
+                    var englishRoot = englishJsonDoc.RootElement;
+
+                    if (englishRoot.TryGetProperty("choices", out var englishChoices) && englishChoices.GetArrayLength() > 0)
+                    {
+                        var firstEnglishChoice = englishChoices[0];
+                        if (firstEnglishChoice.TryGetProperty("message", out var englishMessage))
+                        {
+                            if (englishMessage.TryGetProperty("content", out var englishContentProp))
+                            {
+                                var result = englishContentProp.GetString() ?? "No response";
+
+                                // Retornar análise de contexto + sugestão em inglês
+                                var finalResponse = new StringBuilder();
+                                finalResponse.AppendLine("📝 CONTEXTO DA CONVERSA (Português):");
+                                finalResponse.AppendLine(contextAnalysis);
+                                finalResponse.AppendLine();
+                                finalResponse.AppendLine("═══════════════════════════════════════════");
+                                finalResponse.AppendLine();
+                                finalResponse.AppendLine("💡 SUGGESTED RESPONSE (English):");
+                                finalResponse.AppendLine();
+                                finalResponse.Append(BreakLongLines(result));
+
+                                return finalResponse.ToString();
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AIService] OpenAI error: {englishResponse.StatusCode}");
+                    return GenerateLocalEnglishAnalysisWithContext(historyContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AIService] OpenAI call failed: {ex.Message}");
+                return GenerateLocalEnglishAnalysisWithContext(historyContent);
+            }
+
+            return GenerateLocalEnglishAnalysisWithContext(historyContent);
+        }
+
+        /// <summary>
+        /// Gera análise local com contexto em português quando API não está disponível
+        /// </summary>
+        private string GenerateLocalEnglishAnalysisWithContext(string historyContent)
+        {
+            var analysis = new StringBuilder();
+
+            if (string.IsNullOrWhiteSpace(historyContent))
+            {
+                analysis.AppendLine("No conversation history available.");
+                return analysis.ToString();
+            }
+
+            var lines = historyContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            var speakers = new HashSet<string>();
+            var topics = ExtractTopics(historyContent);
+
+            // Contar participantes
+            foreach (var line in lines)
+            {
+                if (line.Contains(":"))
+                {
+                    var parts = line.Split(new[] { ":" }, StringSplitOptions.None);
+                    if (parts.Length > 0)
+                    {
+                        speakers.Add(parts[0].Trim());
+                    }
+                }
+            }
+
+            // Análise de contexto em português
+            analysis.AppendLine("📝 CONTEXTO DA CONVERSA (Português):");
+            analysis.AppendLine("─────────────────────────────────────");
+            analysis.AppendLine($"A conversa envolve {speakers.Count} participante(s):");
+            foreach (var speaker in speakers)
+            {
+                analysis.AppendLine($"  • {speaker}");
+            }
+            analysis.AppendLine();
+            analysis.AppendLine($"Tópicos principais: {string.Join(", ", topics.Take(3))}");
+            analysis.AppendLine();
+            analysis.AppendLine("A discussão aborda questões relacionadas aos tópicos acima, buscando");
+            analysis.AppendLine("soluções e próximos passos.");
+            analysis.AppendLine();
+
+            analysis.AppendLine("═══════════════════════════════════════════");
+            analysis.AppendLine();
+
+            // Sugestão em inglês
+            analysis.AppendLine("💡 SUGGESTED RESPONSE (English):");
+            analysis.AppendLine("─────────────────────────────────────");
+            analysis.AppendLine("Good. I think this is good. We know what to do.");
+            analysis.AppendLine("I can do this. OK?");
+            analysis.AppendLine();
+
+            return analysis.ToString();
+        }
+
+        /// <summary>
+        /// Chama OpenAI especificamente para sugestão em inglês (método legado, mantido para compatibilidade)
         /// </summary>
         private string CallOpenAIForEnglishSuggestion(string systemPrompt, string userPrompt)
         {
@@ -663,15 +883,8 @@ Keep the response to 2-3 sentences maximum.";
 
             analysis.AppendLine("💡 SUGGESTED RESPONSE:");
             analysis.AppendLine("─────────────────────────────────────");
-            analysis.AppendLine("Thank you for the comprehensive discussion. Based on the conversation,");
-            analysis.AppendLine("the key action items are clear, and we have a solid understanding of");
-            analysis.AppendLine("the next steps moving forward. Let's continue with the implementation.");
-            analysis.AppendLine();
-
-            analysis.AppendLine("📌 KEY POINTS:");
-            analysis.AppendLine("• Conversation was focused and productive");
-            analysis.AppendLine("• All participants actively contributed");
-            analysis.AppendLine("• Clear next steps identified");
+            analysis.AppendLine("OK, good. I understand. We know what to do.");
+            analysis.AppendLine("I will do this now. Yes?");
 
             return analysis.ToString();
         }
