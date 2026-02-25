@@ -16,7 +16,10 @@ namespace TraducaoTIME.UI
         private ToolStripStatusLabel? statusLabel;
         private Panel? containerPanel;
         private RichTextBox? conversationTextBox;
-        private Panel? buttonPanel;
+        private RichTextBox? transcriptionTextBox;
+        private Label? finalizedLabel;
+        private Label? transcriptionLabel;
+        private FlowLayoutPanel? buttonPanel;
         private Button? buttonIniciar;
         private Button? buttonParar;
 
@@ -99,7 +102,6 @@ namespace TraducaoTIME.UI
             containerPanel.Dock = DockStyle.Fill;
             containerPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
 
-
             // Criar painel com botões de controle
             CreateButtonPanel();
 
@@ -112,32 +114,36 @@ namespace TraducaoTIME.UI
 
         private void CreateButtonPanel()
         {
-            // Painel superior para botões
-            buttonPanel = new Panel();
+            // Usar FlowLayoutPanel para auto-layout dos botões
+            buttonPanel = new FlowLayoutPanel();
             buttonPanel.Dock = DockStyle.Top;
-            buttonPanel.Height = 50;
+            buttonPanel.Height = 60;
             buttonPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
             buttonPanel.Padding = new Padding(10);
+            buttonPanel.AutoSize = false;
+            buttonPanel.WrapContents = false;
 
             // Botão Iniciar
             buttonIniciar = new Button();
             buttonIniciar.Text = "Iniciar Transcrição";
-            buttonIniciar.Location = new System.Drawing.Point(10, 10);
-            buttonIniciar.Width = 150;
-            buttonIniciar.Height = 30;
+            buttonIniciar.Size = new System.Drawing.Size(150, 40);
             buttonIniciar.BackColor = System.Drawing.Color.FromArgb(0, 120, 215);
             buttonIniciar.ForeColor = System.Drawing.Color.White;
+            buttonIniciar.FlatStyle = FlatStyle.Flat;
+            buttonIniciar.Font = new System.Drawing.Font("Arial", 10, FontStyle.Bold);
+            buttonIniciar.Margin = new Padding(5);
             buttonIniciar.Click += ButtonIniciar_Click!;
             buttonPanel.Controls.Add(buttonIniciar);
 
             // Botão Parar
             buttonParar = new Button();
             buttonParar.Text = "Parar Transcrição";
-            buttonParar.Location = new System.Drawing.Point(170, 10);
-            buttonParar.Width = 150;
-            buttonParar.Height = 30;
+            buttonParar.Size = new System.Drawing.Size(150, 40);
             buttonParar.BackColor = System.Drawing.Color.FromArgb(200, 55, 55);
             buttonParar.ForeColor = System.Drawing.Color.White;
+            buttonParar.FlatStyle = FlatStyle.Flat;
+            buttonParar.Font = new System.Drawing.Font("Arial", 10, FontStyle.Bold);
+            buttonParar.Margin = new Padding(5);
             buttonParar.Click += ButtonParar_Click!;
             buttonParar.Enabled = false;
             buttonPanel.Controls.Add(buttonParar);
@@ -148,28 +154,96 @@ namespace TraducaoTIME.UI
 
         private void CreateConversationContent()
         {
-            // Criar painel contêiner com padding
-            Panel paddingPanel = new Panel();
-            paddingPanel.Dock = DockStyle.Fill;
-            paddingPanel.Padding = new Padding(0, 30, 0, 30); // padding top e bottom
-            paddingPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+            // Painel principal para dividir finalizadas e transcrição
+            SplitContainer splitContainer = new SplitContainer();
+            splitContainer.Dock = DockStyle.Fill;
+            splitContainer.Orientation = Orientation.Horizontal;
+            splitContainer.SplitterWidth = 5;
+            splitContainer.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+            splitContainer.BorderStyle = BorderStyle.FixedSingle;
+            splitContainer.FixedPanel = FixedPanel.None; // Permite arrastar livremente
+            
+            // Ajustar SplitterDistance dinamicamente quando o handle for criado
+            splitContainer.HandleCreated += (s, e) =>
+            {
+                // Fazer divisão 50/50 do espaço disponível
+                int totalHeight = splitContainer.Height;
+                int splitterHeight = 5;
+                int availableHeight = totalHeight - splitterHeight;
+                splitContainer.SplitterDistance = Math.Max(150, availableHeight / 2);
+            };
+            
+            // Valor inicial até HandleCreated ser chamado
+            splitContainer.SplitterDistance = 280;
 
-            // RichTextBox para exibir transcrições (Google Meet, Teams, etc)
+            // ========== PAINEL 1: FRASES FINALIZADAS ==========
+            Panel finalizedPanel = new Panel();
+            finalizedPanel.Dock = DockStyle.Fill;
+            finalizedPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+            finalizedPanel.Padding = new Padding(10);
+
+            // Label para frases finalizadas
+            finalizedLabel = new Label();
+            finalizedLabel.Text = "✓ Frases Finalizadas";
+            finalizedLabel.Dock = DockStyle.Top;
+            finalizedLabel.Height = 25;
+            finalizedLabel.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+            finalizedLabel.ForeColor = System.Drawing.Color.LimeGreen;
+            finalizedLabel.Font = new System.Drawing.Font("Arial", 11, FontStyle.Bold);
+            finalizedLabel.Padding = new Padding(5, 5, 0, 0);
+            finalizedLabel.BorderStyle = BorderStyle.FixedSingle;
+            finalizedPanel.Controls.Add(finalizedLabel);
+
+            // RichTextBox para frases finalizadas
             conversationTextBox = new RichTextBox();
             conversationTextBox.Dock = DockStyle.Fill;
             conversationTextBox.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
             conversationTextBox.ForeColor = System.Drawing.Color.White;
-            conversationTextBox.BorderStyle = BorderStyle.None;
+            conversationTextBox.BorderStyle = BorderStyle.FixedSingle;
             conversationTextBox.Font = new System.Drawing.Font("Arial", 10);
             conversationTextBox.ReadOnly = true;
             conversationTextBox.WordWrap = true;
+            conversationTextBox.Margin = new Padding(0, 5, 0, 0);
+            conversationTextBox.Text = "Aguardando frases finalizadas...";
+            finalizedPanel.Controls.Add(conversationTextBox);
 
-            // Placeholder inicial
-            conversationTextBox.Text = "Aguardando transcrição...\r\n";
+            splitContainer.Panel1.Controls.Add(finalizedPanel);
 
-            paddingPanel.Controls.Add(conversationTextBox);
+            // ========== PAINEL 2: TRANSCRIÇÃO EM PROGRESSO ==========
+            Panel transcriptionPanel = new Panel();
+            transcriptionPanel.Dock = DockStyle.Fill;
+            transcriptionPanel.BackColor = System.Drawing.Color.FromArgb(40, 40, 40);
+            transcriptionPanel.Padding = new Padding(10);
+
+            // Label para transcrição em progresso
+            transcriptionLabel = new Label();
+            transcriptionLabel.Text = "⟳ Transcrição em Andamento";
+            transcriptionLabel.Dock = DockStyle.Top;
+            transcriptionLabel.Height = 25;
+            transcriptionLabel.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+            transcriptionLabel.ForeColor = System.Drawing.Color.Orange;
+            transcriptionLabel.Font = new System.Drawing.Font("Arial", 11, FontStyle.Bold);
+            transcriptionLabel.Padding = new Padding(5, 5, 0, 0);
+            transcriptionLabel.BorderStyle = BorderStyle.FixedSingle;
+            transcriptionPanel.Controls.Add(transcriptionLabel);
+
+            // RichTextBox para transcrição em progresso
+            transcriptionTextBox = new RichTextBox();
+            transcriptionTextBox.Dock = DockStyle.Fill;
+            transcriptionTextBox.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+            transcriptionTextBox.ForeColor = System.Drawing.Color.Gold;
+            transcriptionTextBox.BorderStyle = BorderStyle.FixedSingle;
+            transcriptionTextBox.Font = new System.Drawing.Font("Arial", 10);
+            transcriptionTextBox.ReadOnly = true;
+            transcriptionTextBox.WordWrap = true;
+            transcriptionTextBox.Margin = new Padding(0, 5, 0, 0);
+            transcriptionTextBox.Text = "Aguardando transcrição...";
+            transcriptionPanel.Controls.Add(transcriptionTextBox);
+
+            splitContainer.Panel2.Controls.Add(transcriptionPanel);
+
             if (containerPanel != null)
-                containerPanel.Controls.Add(paddingPanel);
+                containerPanel.Controls.Add(splitContainer);
         }
 
         private void CreateStatusBar()
@@ -302,53 +376,51 @@ namespace TraducaoTIME.UI
 
         private void RefreshDisplay()
         {
-            if (conversationTextBox == null) return;
+            if (conversationTextBox == null || transcriptionTextBox == null) return;
 
-            // Construir o texto completo com quebras de linhas claras e visuais
-            StringBuilder displayText = new StringBuilder();
-
-            // Adicionar linhas finalizadas
+            // ========== CONSTRUIR TEXTO DAS FRASES FINALIZADAS ==========
+            StringBuilder finalizedText = new StringBuilder();
             for (int i = 0; i < _finalizedLines.Count; i++)
             {
                 if (i > 0)
-                    displayText.Append("\r\n");
-
-                // Usar prefixo simples em ASCII para finalizadas
-                displayText.Append($"• {_finalizedLines[i]}");
+                    finalizedText.Append("\r\n");
+                finalizedText.Append($"✓ {_finalizedLines[i]}");
             }
 
-            // Adicionar separador e interim (se houver) em nova linha clara
+            if (_finalizedLines.Count == 0)
+                finalizedText.Append("Aguardando frases finalizadas...");
+
+            // ========== CONSTRUIR TEXTO DA TRANSCRIÇÃO EM PROGRESSO ==========
+            StringBuilder interimText = new StringBuilder();
             if (!string.IsNullOrWhiteSpace(_currentInterimText))
             {
-                // Se há linhas finalizadas, adicionar quebra de linha e separador visual
-                if (_finalizedLines.Count > 0)
-                {
-                    displayText.Append("\r\n");
-                    displayText.Append("────────────────────────────────────────\r\n");
-                }
-                else if (displayText.Length > 0)
-                    displayText.Append("\r\n");
-
-                // Usar prefixo simples para interim
-                displayText.Append($"» {_currentInterimText}");
+                interimText.Append($"⟳ {_currentInterimText}");
+            }
+            else
+            {
+                interimText.Append("Aguardando transcrição...");
             }
 
             // DEBUG
             Console.WriteLine($"[RefreshDisplay] Finalizadas: {_finalizedLines.Count} | Interim: {!string.IsNullOrWhiteSpace(_currentInterimText)}");
-            Console.WriteLine($"[RefreshDisplay] Atualizando display com {_finalizedLines.Count} linhas finalizadas");
 
-            // Atualizar o texto do RichTextBox
-            conversationTextBox.Text = displayText.ToString();
+            // ATUALIZAR OS DOIS RICHTEXTBOX
+            conversationTextBox.Text = finalizedText.ToString();
+            transcriptionTextBox.Text = interimText.ToString();
 
-            // Agora formatar as cores
-            FormatDisplay();
+            // FORMATAR COR S NOS DOIS
+            FormatFinalizedDisplay();
+            FormatTranscriptionDisplay();
 
-            // Ir para o final do texto para acompanhar a transcrição
+            // Auto-scroll para o final em ambos
             conversationTextBox.SelectionStart = conversationTextBox.Text.Length;
             conversationTextBox.ScrollToCaret();
+
+            transcriptionTextBox.SelectionStart = transcriptionTextBox.Text.Length;
+            transcriptionTextBox.ScrollToCaret();
         }
 
-        private void FormatDisplay()
+        private void FormatFinalizedDisplay()
         {
             if (conversationTextBox == null) return;
 
@@ -361,23 +433,23 @@ namespace TraducaoTIME.UI
                 System.Drawing.FontStyle.Regular
             );
 
-            // Formatar linhas finalizadas (branco brilhante + normal) - cada uma em sua linha
+            // Formatar linhas finalizadas (checkmark verde + texto branco)
             int currentPos = 0;
             for (int i = 0; i < _finalizedLines.Count; i++)
             {
-                string lineText = $"• {_finalizedLines[i]}";
+                string lineText = $"✓ {_finalizedLines[i]}";
                 int lineStartPos = conversationTextBox.Text.IndexOf(lineText, currentPos);
 
                 if (lineStartPos >= 0)
                 {
-                    // Formatar o prefixo (color lightgray)
-                    int prefixLen = 2; // "• " = 2 caracteres
+                    // Formatar o prefixo (checkmark em verde)
+                    int prefixLen = 2; // "✓ " = 2 caracteres
                     conversationTextBox.Select(lineStartPos, prefixLen);
-                    conversationTextBox.SelectionColor = System.Drawing.Color.LightGray;
+                    conversationTextBox.SelectionColor = System.Drawing.Color.LimeGreen;
                     conversationTextBox.SelectionFont = new System.Drawing.Font(
                         conversationTextBox.Font.FontFamily,
-                        conversationTextBox.Font.Size,
-                        System.Drawing.FontStyle.Regular
+                        conversationTextBox.Font.Size + 2,
+                        System.Drawing.FontStyle.Bold
                     );
 
                     // Formatar o texto em branco
@@ -393,49 +465,65 @@ namespace TraducaoTIME.UI
                 }
             }
 
-            // Formatar separador visual (se houver interim)
-            if (!string.IsNullOrWhiteSpace(_currentInterimText))
-            {
-                string separator = "────────────────────────────────────────";
-                int separatorPos = conversationTextBox.Text.IndexOf(separator);
-                if (separatorPos >= 0)
-                {
-                    conversationTextBox.Select(separatorPos, separator.Length);
-                    conversationTextBox.SelectionColor = System.Drawing.Color.DarkGray;
-                }
-            }
+            // Resetar seleção
+            conversationTextBox.Select(conversationTextBox.Text.Length, 0);
+        }
 
-            // Formatar interim (amarelo brilhante + itálico) - em sua própria linha
+        private void FormatTranscriptionDisplay()
+        {
+            if (transcriptionTextBox == null) return;
+
+            // Começar tudo em ouro
+            transcriptionTextBox.SelectAll();
+            transcriptionTextBox.SelectionColor = System.Drawing.Color.Gold;
+            transcriptionTextBox.SelectionFont = new System.Drawing.Font(
+                transcriptionTextBox.Font.FontFamily,
+                transcriptionTextBox.Font.Size,
+                System.Drawing.FontStyle.Italic
+            );
+
+            // Formatar o prefixo (seta em laranja)
             if (!string.IsNullOrWhiteSpace(_currentInterimText))
             {
-                string interimText = $"» {_currentInterimText}";
-                int interimPos = conversationTextBox.Text.LastIndexOf(interimText);
+                string interimText = $"⟳ {_currentInterimText}";
+                int interimPos = transcriptionTextBox.Text.IndexOf(interimText);
 
                 if (interimPos >= 0)
                 {
-                    // Formatar o prefixo em amarelo
-                    int prefixLen = 2; // "» " = 2 caracteres
-                    conversationTextBox.Select(interimPos, prefixLen);
-                    conversationTextBox.SelectionColor = System.Drawing.Color.Yellow;
-                    conversationTextBox.SelectionFont = new System.Drawing.Font(
-                        conversationTextBox.Font.FontFamily,
-                        conversationTextBox.Font.Size,
+                    // Formatar o prefixo em laranja
+                    int prefixLen = 2; // "⟳ " = 2 caracteres
+                    transcriptionTextBox.Select(interimPos, prefixLen);
+                    transcriptionTextBox.SelectionColor = System.Drawing.Color.Orange;
+                    transcriptionTextBox.SelectionFont = new System.Drawing.Font(
+                        transcriptionTextBox.Font.FontFamily,
+                        transcriptionTextBox.Font.Size + 2,
                         System.Drawing.FontStyle.Bold
                     );
 
-                    // Formatar o texto em cor laranja itálico
-                    conversationTextBox.Select(interimPos + prefixLen, interimText.Length - prefixLen);
-                    conversationTextBox.SelectionColor = System.Drawing.Color.Gold;
-                    conversationTextBox.SelectionFont = new System.Drawing.Font(
-                        conversationTextBox.Font.FontFamily,
-                        conversationTextBox.Font.Size,
+                    // Formatar o texto em ouro itálico
+                    transcriptionTextBox.Select(interimPos + prefixLen, interimText.Length - prefixLen);
+                    transcriptionTextBox.SelectionColor = System.Drawing.Color.Gold;
+                    transcriptionTextBox.SelectionFont = new System.Drawing.Font(
+                        transcriptionTextBox.Font.FontFamily,
+                        transcriptionTextBox.Font.Size,
                         System.Drawing.FontStyle.Italic
                     );
                 }
             }
+            else
+            {
+                // Se não há interim, mostrar aviso em cor cinzenta
+                transcriptionTextBox.SelectAll();
+                transcriptionTextBox.SelectionColor = System.Drawing.Color.Gray;
+                transcriptionTextBox.SelectionFont = new System.Drawing.Font(
+                    transcriptionTextBox.Font.FontFamily,
+                    transcriptionTextBox.Font.Size,
+                    System.Drawing.FontStyle.Regular
+                );
+            }
 
             // Resetar seleção
-            conversationTextBox.Select(conversationTextBox.Text.Length, 0);
+            transcriptionTextBox.Select(transcriptionTextBox.Text.Length, 0);
         }
 
         private void AtualizarStatus()
@@ -497,6 +585,8 @@ namespace TraducaoTIME.UI
             _currentInterimText = "";
             if (conversationTextBox != null)
                 conversationTextBox.Clear();
+            if (transcriptionTextBox != null)
+                transcriptionTextBox.Clear();
 
             // Executar transcrição em thread separada
             transcriptionThread = new System.Threading.Thread(() =>
