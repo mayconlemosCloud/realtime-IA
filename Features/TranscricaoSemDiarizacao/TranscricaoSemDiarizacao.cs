@@ -50,6 +50,74 @@ namespace TraducaoTIME.Features.TranscricaoSemDiarizacao
                 config.SpeechRecognitionLanguage = "en-US"; // Idioma de entrada: Inglês
                 config.AddTargetLanguage("pt"); // Idioma de saída para tradução (usar código simples: "pt" não "pt-BR")
 
+                // Testar conexão com Azure ANTES de prosseguir
+                Console.WriteLine("[INFO] Testando autenticação com Azure Speech Service...");
+                try
+                {
+                    // Validar fazendo um teste HTTP direto ao serviço Azure
+                    using (var httpClient = new System.Net.Http.HttpClient())
+                    {
+                        httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", azureKey);
+                        var testUrl = $"https://{azureRegion}.api.cognitive.microsoft.com/sts/v1.0/issueToken";
+
+                        try
+                        {
+                            var response = httpClient.PostAsync(testUrl, new System.Net.Http.StringContent("")).Result;
+                            if (!response.IsSuccessStatusCode)
+                            {
+                                throw new Exception($"Erro {response.StatusCode}: {response.ReasonPhrase}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            if (ex.Message.Contains("401") || ex.Message.Contains("Unauthorized"))
+                                throw new Exception("401: Chave API inválida");
+                            if (ex.Message.Contains("403") || ex.Message.Contains("Forbidden"))
+                                throw new Exception("403: Acesso negado - quota excedida");
+                            throw;
+                        }
+                    }
+                    Console.WriteLine("[INFO] ✅ Autenticação Azure validada!\n");
+                }
+                catch (Exception ex)
+                {
+                    string errorMsg = ex.Message.ToLower();
+                    string merged = (errorMsg).ToLower();
+
+                    string erro = "❌ ERRO DE AUTENTICAÇÃO\n\n";
+
+                    if (merged.Contains("401"))
+                    {
+                        erro = "❌ ERRO: Chave API inválida!\n\n";
+                        erro += "Verifique AZURE_SPEECH_KEY no arquivo .env\n";
+                        erro += "A chave pode estar errada, expirada ou não ser válida para esta região.";
+                    }
+                    else if (merged.Contains("403"))
+                    {
+                        erro = "❌ ERRO: Sua quota foi excedida!\n\n";
+                        erro += "Sua assinatura gratuita pode ter um limite ou expirou.";
+                    }
+                    else if (merged.Contains("connection") || merged.Contains("timeout") || merged.Contains("network"))
+                    {
+                        erro = "❌ ERRO: Falha de conexão de rede!\n\n";
+                        erro += "Verifique sua conexão com a internet.";
+                    }
+                    else if (merged.Contains("service unavailable") || merged.Contains("503"))
+                    {
+                        erro = "❌ ERRO: Serviço Azure indisponível!\n\n";
+                        erro += "Tente novamente em alguns minutos.";
+                    }
+                    else
+                    {
+                        erro += $"Detalhes: {ex.Message}";
+                    }
+
+                    Console.WriteLine($"\n{erro}\n");
+                    var errorSegment = new TranscriptionSegment(erro, isFinal: true);
+                    OnTranscriptionReceivedSegment?.Invoke(errorSegment);
+                    return;
+                }
+
                 var infoSegment = new TranscriptionSegment("Speech Translation ativado - Reconhecendo inglês, traduzindo para PT-BR", isFinal: true);
                 OnTranscriptionReceivedSegment?.Invoke(infoSegment);
 
@@ -62,7 +130,7 @@ namespace TraducaoTIME.Features.TranscricaoSemDiarizacao
 
                 // Cria PushAudioInputStream para streaming
                 var pushStream = AudioInputStream.CreatePushStream(AudioStreamFormat.GetWaveFormatPCM(16000, 16, 1));
-                var audioConfig = AudioConfig.FromStreamInput(pushStream);
+                var audioConfigForCapture = AudioConfig.FromStreamInput(pushStream);
 
                 // Conecta os eventos do WaveIn ao PushStream
                 capture.DataAvailable += (sender, e) =>
@@ -72,10 +140,10 @@ namespace TraducaoTIME.Features.TranscricaoSemDiarizacao
                     pushStream.Write(buffer);
                 };
 
-                using (audioConfig)
+                using (audioConfigForCapture)
                 {
                     // Sem diarização, usa TranslationRecognizer com tradução nativa do Azure Speech
-                    using (var translationRecognizer = new TranslationRecognizer(config, audioConfig))
+                    using (var translationRecognizer = new TranslationRecognizer(config, audioConfigForCapture))
                     {
                         Console.WriteLine("[DEBUG] TranslationRecognizer criado");
 

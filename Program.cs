@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
+using dotenv.net;
 using TraducaoTIME.UI;
 using TraducaoTIME.Utils;
 using TraducaoTIME.Features.TranscricaoSemDiarizacao;
@@ -17,6 +18,9 @@ class Program
     [STAThread]
     static void Main()
     {
+        // Carregar variáveis do arquivo .env
+        DotEnv.Load();
+
         // Alocar console para debug
         AllocConsole();
 
