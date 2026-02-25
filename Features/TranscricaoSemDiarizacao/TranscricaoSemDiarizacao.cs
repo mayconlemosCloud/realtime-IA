@@ -48,9 +48,9 @@ namespace TraducaoTIME.Features.TranscricaoSemDiarizacao
                 // Configuração do SpeechTranslationConfig
                 var config = SpeechTranslationConfig.FromSubscription(azureKey, azureRegion);
                 config.SpeechRecognitionLanguage = "en-US"; // Idioma de entrada: Inglês
-                config.AddTargetLanguage("pt-BR"); // Idioma de saída para tradução
+                config.AddTargetLanguage("pt"); // Idioma de saída para tradução (usar código simples: "pt" não "pt-BR")
 
-                var infoSegment = new TranscriptionSegment("Speech Translation ativado - Reconhecendo inglês", isFinal: true);
+                var infoSegment = new TranscriptionSegment("Speech Translation ativado - Reconhecendo inglês, traduzindo para PT-BR", isFinal: true);
                 OnTranscriptionReceivedSegment?.Invoke(infoSegment);
 
                 // Cria captura a partir do dispositivo selecionado
@@ -97,14 +97,25 @@ namespace TraducaoTIME.Features.TranscricaoSemDiarizacao
                             Console.WriteLine($"[DEBUG] Recognizing: {e.Result.Text}");
                             if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {
+                                // Obter a tradução em português
+                                string displayText = e.Result.Text;
+                                if (e.Result.Translations.TryGetValue("pt", out var translatedText) && !string.IsNullOrWhiteSpace(translatedText))
+                                {
+                                    displayText = translatedText; // Usar a tradução em português
+                                    Console.WriteLine($"[DEBUG] Tradução interim: {displayText}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[DEBUG] Interim (sem tradução): {displayText}");
+                                }
+                                
                                 if (isFirst)
                                 {
                                     isFirst = false;
                                 }
                                 // Enviar como interim (não final)
-                                var segment = new TranscriptionSegment(e.Result.Text, isFinal: false);
+                                var segment = new TranscriptionSegment(displayText, isFinal: false);
                                 OnTranscriptionReceivedSegment?.Invoke(segment);
-                                Console.WriteLine($"[DEBUG] Interim: {e.Result.Text}");
                             }
                         };
 
@@ -112,13 +123,25 @@ namespace TraducaoTIME.Features.TranscricaoSemDiarizacao
                         {
                             Console.WriteLine($"[DEBUG] Recognized: {e.Result.Text} | Reason: {e.Result.Reason}");
 
+                            // Obter a tradução em português
+                            string displayText = e.Result.Text;
+                            if (e.Result.Translations.TryGetValue("pt", out var translatedText) && !string.IsNullOrWhiteSpace(translatedText))
+                            {
+                                displayText = translatedText; // Usar a tradução em português
+                                Console.WriteLine($"[DEBUG] Texto traduzido: {displayText}");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[DEBUG] Sem tradução disponível, usando texto original");
+                            }
+
                             // Aceitar qualquer resultado não vazio como final
-                            if (!string.IsNullOrWhiteSpace(e.Result.Text))
+                            if (!string.IsNullOrWhiteSpace(displayText))
                             {
                                 // Enviar como final
-                                var segment = new TranscriptionSegment(e.Result.Text, isFinal: true);
+                                var segment = new TranscriptionSegment(displayText, isFinal: true);
                                 OnTranscriptionReceivedSegment?.Invoke(segment);
-                                Console.WriteLine($"[DEBUG] Final (adicionado): {e.Result.Text}");
+                                Console.WriteLine($"[DEBUG] Final (adicionado): {displayText}");
                             }
                             else if (e.Result.Reason == ResultReason.NoMatch)
                             {
