@@ -7,10 +7,15 @@ namespace TraducaoTIME.Utils
 {
     public class AudioDeviceSelector
     {
-        public static MMDevice SelecionarDispositivo()
+        public static List<MMDevice> GetDispositivosDisponiveis()
         {
             var enumerator = new MMDeviceEnumerator();
-            var devices = enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active).ToList();
+            return enumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active).ToList();
+        }
+
+        public static MMDevice SelecionarDispositivo()
+        {
+            var devices = GetDispositivosDisponiveis();
 
             Console.WriteLine("\nDispositivos disponíveis:");
             for (int i = 0; i < devices.Count; i++)

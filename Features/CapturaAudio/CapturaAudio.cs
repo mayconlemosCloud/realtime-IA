@@ -9,6 +9,7 @@ namespace TraducaoTIME.Features.CapturaAudio
         private static long totalBytesRecorded = 0;
         private static byte[]? audioBuffer;
         private static int bufferPosition = 0;
+        private static bool _shouldStop = false;
 
         public static void Executar(MMDevice device)
         {
@@ -29,12 +30,23 @@ namespace TraducaoTIME.Features.CapturaAudio
             capture.DataAvailable += OnDataAvailable;
             capture.StartRecording();
 
-            Console.WriteLine("🎤 Capturando áudio. Pressione ENTER para parar...\n");
-            Console.ReadLine();
+            Console.WriteLine("🎤 Capturando áudio...\n");
+            _shouldStop = false;
+            
+            // Aguardar até que a captura seja parada
+            while (!_shouldStop)
+            {
+                System.Threading.Thread.Sleep(100);
+            }
 
             capture.StopRecording();
             Console.WriteLine($"\n✓ Captura finalizada. Total: {totalBytesRecorded} bytes");
             capture.Dispose();
+        }
+
+        public static void Parar()
+        {
+            _shouldStop = true;
         }
 
         private static void OnDataAvailable(object? sender, WaveInEventArgs e)

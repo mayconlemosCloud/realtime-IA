@@ -1,4 +1,8 @@
 using System;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Runtime.InteropServices;
+using TraducaoTIME.UI;
 using TraducaoTIME.Utils;
 using TraducaoTIME.Features.TranscricaoSemDiarizacao;
 using TraducaoTIME.Features.TranscricaoComDiarizacao;
@@ -6,35 +10,33 @@ using TraducaoTIME.Features.CapturaAudio;
 
 class Program
 {
+    // Importar a função para alocar console
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool AllocConsole();
+
+    [STAThread]
     static void Main()
     {
-        Console.WriteLine("╔════════════════════════════════════════╗");
-        Console.WriteLine("║     TRANSCRIÇÃO DE ÁUDIO - AZURE       ║");
-        Console.WriteLine("╚════════════════════════════════════════╝\n");
+        // Alocar console para debug
+        AllocConsole();
+        
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
 
-        Console.WriteLine("Escolha uma opção:");
-        Console.WriteLine("1 - Transcrição SEM diarização (tempo real)");
-        Console.WriteLine("2 - Transcrição COM diarização (tempo real)");
-        Console.WriteLine("3 - Apenas capturar áudio (sem transcrição)");
-        Console.Write("\nOpção: ");
+        // Criar a janela
+        MainForm form = new MainForm();
 
-        string option = Console.ReadLine() ?? "1";
+        // Conectar o callback da transcrição à MainForm
+        TranscricaoSemDiarizacao.OnTranscriptionReceived = (text) => form.ShowTranslation(text);
+        TranscricaoComDiarizacao.OnTranscriptionReceived = (text) => form.ShowTranslation(text);
 
-        // Seleciona dispositivo
-        var device = AudioDeviceSelector.SelecionarDispositivo();
+        // Passar referência de transcrição para MainForm
+        form.SetTranscriptionCallbacks(
+            (device) => TranscricaoSemDiarizacao.Executar(device),
+            (device) => TranscricaoComDiarizacao.Executar(device)
+        );
 
-        // Executa a opção selecionada
-        if (option == "1")
-        {
-            TranscricaoSemDiarizacao.Executar(device);
-        }
-        else if (option == "2")
-        {
-            TranscricaoComDiarizacao.Executar(device).Wait();
-        }
-        else
-        {
-            CapturaAudio.Executar(device);
-        }
+        // Mostrar a janela
+        Application.Run(form);
     }
 }
