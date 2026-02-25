@@ -11,6 +11,7 @@ namespace TraducaoTIME.UI
     {
         private MenuStrip? menuStrip;
         private ToolStripMenuItem? configMenu;
+        private ToolStripMenuItem? iaMenu;
         private StatusStrip? statusStrip;
         private ToolStripStatusLabel? statusLabel;
         private Panel? containerPanel;
@@ -26,6 +27,9 @@ namespace TraducaoTIME.UI
         private List<string> _finalizedLines = new List<string>();
         // Texto interim atual (cresce palavra por palavra)
         private string _currentInterimText = "";
+
+        // Referência para a janela IA
+        private AIForm? _iaForm;
 
         public MainForm()
         {
@@ -66,10 +70,15 @@ namespace TraducaoTIME.UI
             configMenu = new ToolStripMenuItem("CONFIG");
             configMenu.Click += ConfigMenu_Click!;
 
+            // Criar item de menu IA
+            iaMenu = new ToolStripMenuItem("IA");
+            iaMenu.Click += IAMenu_Click!;
+
             // Adicionar o menu ao MenuStrip
             if (menuStrip != null)
             {
                 menuStrip.Items.Add(configMenu);
+                menuStrip.Items.Add(iaMenu);
 
                 // Adicionar MenuStrip ao formulário
                 this.MainMenuStrip = menuStrip;
@@ -181,6 +190,46 @@ namespace TraducaoTIME.UI
 
             // Atualizar status após fechar a janela de configuração
             AtualizarStatus();
+        }
+
+        private void IAMenu_Click(object sender, EventArgs e)
+        {
+            // Obter histórico de conversa para passar para a IA
+            string conversationHistory = GetConversationHistory();
+
+            // Abrir a janela IA
+            if (_iaForm == null || _iaForm.IsDisposed)
+            {
+                _iaForm = new AIForm(conversationHistory);
+                _iaForm.Show(this);
+            }
+            else
+            {
+                // Se já existe, atualizar o histórico e trazer para frente
+                _iaForm.UpdateConversationHistory(conversationHistory);
+                _iaForm.BringToFront();
+                _iaForm.Focus();
+            }
+        }
+
+        private string GetConversationHistory()
+        {
+            // Reconstruir o histórico completo da conversa
+            StringBuilder history = new StringBuilder();
+
+            // Adicionar linhas finalizadas
+            foreach (var line in _finalizedLines)
+            {
+                history.AppendLine(line);
+            }
+
+            // Adicionar interim atual se houver
+            if (!string.IsNullOrWhiteSpace(_currentInterimText))
+            {
+                history.AppendLine(_currentInterimText);
+            }
+
+            return history.ToString();
         }
 
         public void ShowTranslation(string transcription)
