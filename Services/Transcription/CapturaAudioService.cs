@@ -32,7 +32,7 @@ namespace TraducaoTIME.Services.Transcription
         {
             try
             {
-                Logger.Info($"[{ServiceName}] Iniciando...");
+                this.Logger.Info($"[{ServiceName}] Iniciando...");
                 EventPublisher.OnTranscriptionStarted();
 
                 IWaveIn capture = CreateWaveCapture(device);
@@ -43,14 +43,14 @@ namespace TraducaoTIME.Services.Transcription
                 capture.DataAvailable += (sender, e) =>
                 {
                     _totalBytesRecorded += e.BytesRecorded;
-                    Logger.Debug($"[{ServiceName}] Capturados {e.BytesRecorded} bytes (Total: {_totalBytesRecorded})");
+                    this.Logger.Debug($"[{ServiceName}] Capturados {e.BytesRecorded} bytes (Total: {_totalBytesRecorded})");
                 };
 
                 var startSegment = new TranscriptionSegment($"🎤 Capturando áudio de {device.FriendlyName}...", isFinal: true);
                 EventPublisher.OnSegmentReceived(startSegment);
 
                 capture.StartRecording();
-                Logger.Info($"[{ServiceName}] Captura iniciada");
+                this.Logger.Info($"[{ServiceName}] Captura iniciada");
 
                 while (!ShouldStop && !cancellationToken.IsCancellationRequested)
                 {
@@ -58,7 +58,7 @@ namespace TraducaoTIME.Services.Transcription
                 }
 
                 capture.StopRecording();
-                Logger.Info($"[{ServiceName}] Captura finalizada. Total: {_totalBytesRecorded} bytes");
+                this.Logger.Info($"[{ServiceName}] Captura finalizada. Total: {_totalBytesRecorded} bytes");
 
                 var endSegment = new TranscriptionSegment($"✓ Captura finalizada. Total: {_totalBytesRecorded} bytes", isFinal: true);
                 EventPublisher.OnSegmentReceived(endSegment);

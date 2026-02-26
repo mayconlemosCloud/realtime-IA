@@ -9,21 +9,10 @@ namespace TraducaoTIME.Services.Configuration
 {
     public class AppConfig : IConfigurationService
     {
-        private static AppConfig? _instance;
-
         private string _selectedOption = "1";
         private string _selectedDeviceName = "";
 
         public event EventHandler? ConfigurationChanged;
-
-        public static AppConfig Instance
-        {
-            get
-            {
-                _instance ??= new AppConfig();
-                return _instance;
-            }
-        }
 
         public string SelectedOption
         {

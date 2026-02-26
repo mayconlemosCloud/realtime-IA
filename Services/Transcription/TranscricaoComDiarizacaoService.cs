@@ -37,7 +37,7 @@ namespace TraducaoTIME.Services.Transcription
         {
             try
             {
-                Logger.Info($"[{ServiceName}] Iniciando...");
+                this.Logger.Info($"[{ServiceName}] Iniciando...");
                 EventPublisher.OnTranscriptionStarted();
 
                 // Validar credenciais Azure
@@ -65,7 +65,7 @@ namespace TraducaoTIME.Services.Transcription
                             throw new Exception($"Erro {response.StatusCode}: {response.ReasonPhrase}");
                         }
                     }
-                    Logger.Info($"[{ServiceName}] Autenticação Azure validada");
+                    this.Logger.Info($"[{ServiceName}] Autenticação Azure validada");
                 }
                 catch (Exception ex)
                 {
@@ -110,7 +110,7 @@ namespace TraducaoTIME.Services.Transcription
                 {
                     using (var conversationTranscriber = new ConversationTranscriber(speechConfig, audioConfigForCapture))
                     {
-                        Logger.Info($"[{ServiceName}] ConversationTranscriber criado");
+                        this.Logger.Info($"[{ServiceName}] ConversationTranscriber criado");
 
                         ShouldStop = false;
 
@@ -119,7 +119,7 @@ namespace TraducaoTIME.Services.Transcription
                             if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {
                                 string speaker = GetSpeakerName(e.Result.SpeakerId ?? "Unknown");
-                                Logger.Debug($"[{ServiceName}] Transcribing: {speaker}: {e.Result.Text}");
+                                this.Logger.Debug($"[{ServiceName}] Transcribing: {speaker}: {e.Result.Text}");
 
                                 var segment = new TranscriptionSegment(e.Result.Text, isFinal: false, speaker: speaker);
                                 EventPublisher.OnSegmentReceived(segment);
@@ -131,7 +131,7 @@ namespace TraducaoTIME.Services.Transcription
                             if (!string.IsNullOrWhiteSpace(e.Result.Text))
                             {
                                 string speaker = GetSpeakerName(e.Result.SpeakerId ?? "Unknown");
-                                Logger.Debug($"[{ServiceName}] Transcribed: {speaker}: {e.Result.Text}");
+                                this.Logger.Debug($"[{ServiceName}] Transcribed: {speaker}: {e.Result.Text}");
 
                                 var segment = new TranscriptionSegment(e.Result.Text, isFinal: true, speaker: speaker);
                                 EventPublisher.OnSegmentReceived(segment);
@@ -149,7 +149,7 @@ namespace TraducaoTIME.Services.Transcription
 
                         capture.StartRecording();
                         await conversationTranscriber.StartTranscribingAsync();
-                        Logger.Info($"[{ServiceName}] Transcrição iniciada");
+                        this.Logger.Info($"[{ServiceName}] Transcrição iniciada");
 
                         while (!ShouldStop && !cancellationToken.IsCancellationRequested)
                         {
@@ -162,7 +162,7 @@ namespace TraducaoTIME.Services.Transcription
                 }
 
                 EventPublisher.OnTranscriptionCompleted();
-                Logger.Info($"[{ServiceName}] Concluído com sucesso");
+                this.Logger.Info($"[{ServiceName}] Concluído com sucesso");
                 return new TranscriptionResult { Success = true };
             }
             catch (Exception ex)
@@ -175,7 +175,7 @@ namespace TraducaoTIME.Services.Transcription
 
         public override void Stop()
         {
-            Logger.Info($"[{ServiceName}] Parando...");
+            this.Logger.Info($"[{ServiceName}] Parando...");
             ShouldStop = true;
         }
 

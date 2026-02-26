@@ -50,7 +50,7 @@ namespace TraducaoTIME.Services.Transcription
         /// </summary>
         public virtual void Stop()
         {
-            Logger.Info($"[{ServiceName}] Parando...");
+            this.Logger.Info($"[{ServiceName}] Parando...");
             ShouldStop = true;
         }
 
@@ -86,7 +86,7 @@ namespace TraducaoTIME.Services.Transcription
                         return (false, erro);
                     }
                 }
-                Logger.Info($"[{ServiceName}] Autenticação Azure validada");
+                this.Logger.Info($"[{ServiceName}] Autenticação Azure validada");
                 return (true, "");
             }
             catch (Exception ex)

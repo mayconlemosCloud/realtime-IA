@@ -10,13 +10,6 @@ namespace TraducaoTIME.UIWPF
     {
         private readonly IConfigurationService _configurationService;
 
-        public ConfigWindow()
-        {
-            InitializeComponent();
-            _configurationService = Services.Configuration.AppConfig.Instance;
-            LoadConfiguration();
-        }
-
         public ConfigWindow(IConfigurationService configurationService, ILogger logger)
         {
             InitializeComponent();

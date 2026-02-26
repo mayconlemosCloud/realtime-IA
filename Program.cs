@@ -87,14 +87,12 @@ namespace TraducaoTIME
             };
             services.AddSingleton(appSettings);
 
-            // Logging com suporte a múltiplas saídas
+            // Logging - FileLogger consolidado
             string logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, appSettings.Logging.OutputPath);
             Directory.CreateDirectory(logFolder);
             string logPath = Path.Combine(logFolder, $"transacao_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log");
 
-            services.AddSingleton<ILoggerOutput>(sp => new FileLoggerOutput(logPath));
-            services.AddSingleton<ILogger>(sp =>
-                new LoggerProvider(sp.GetRequiredService<ILoggerOutput>(), appSettings.Logging.Level));
+            services.AddSingleton<ILogger>(new FileLogger(logPath, appSettings.Logging.Level));
 
             // Histórico - com separação de responsabilidades (In-Memory + Storage)
             string historyFolder = Path.Combine(

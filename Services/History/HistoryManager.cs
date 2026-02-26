@@ -39,7 +39,9 @@ namespace TraducaoTIME.Services.History
             _entries.Add(entry);
 
             // Fire and forget - não bloqueia a UI
-            _ = _storage.SaveAsync(entry);
+#pragma warning disable CS4014
+            _storage.SaveAsync(entry);
+#pragma warning restore CS4014
         }
 
         public IEnumerable<HistoryEntry> GetHistory()
@@ -63,7 +65,9 @@ namespace TraducaoTIME.Services.History
         {
             _entries.Clear();
             // Fire and forget
-            _ = _storage.ClearAsync();
+#pragma warning disable CS4014
+            _storage.ClearAsync();
+#pragma warning restore CS4014
         }
     }
 }

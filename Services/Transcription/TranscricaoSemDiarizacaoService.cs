@@ -33,7 +33,7 @@ namespace TraducaoTIME.Services.Transcription
         {
             try
             {
-                Logger.Info($"[{ServiceName}] Iniciando...");
+                this.Logger.Info($"[{ServiceName}] Iniciando...");
                 EventPublisher.OnTranscriptionStarted();
 
                 // Validar credenciais Azure
@@ -70,7 +70,7 @@ namespace TraducaoTIME.Services.Transcription
                 {
                     using (var translationRecognizer = new TranslationRecognizer(config, audioConfigForCapture))
                     {
-                        Logger.Info($"[{ServiceName}] TranslationRecognizer criado");
+                        this.Logger.Info($"[{ServiceName}] TranslationRecognizer criado");
 
                         var infoSegment = new TranscriptionSegment("Speech Translation ativado - Reconhecendo inglês, traduzindo para PT-BR", isFinal: true);
                         EventPublisher.OnSegmentReceived(infoSegment);
@@ -121,7 +121,7 @@ namespace TraducaoTIME.Services.Transcription
 
                         capture.StartRecording();
                         await translationRecognizer.StartContinuousRecognitionAsync();
-                        Logger.Info($"[{ServiceName}] Reconhecimento iniciado");
+                        this.Logger.Info($"[{ServiceName}] Reconhecimento iniciado");
 
                         while (!ShouldStop && !cancellationToken.IsCancellationRequested)
                         {
@@ -134,7 +134,7 @@ namespace TraducaoTIME.Services.Transcription
                 }
 
                 EventPublisher.OnTranscriptionCompleted();
-                Logger.Info($"[{ServiceName}] Concluído com sucesso");
+                this.Logger.Info($"[{ServiceName}] Concluído com sucesso");
                 return new TranscriptionResult { Success = true };
             }
             catch (Exception ex)
@@ -147,7 +147,7 @@ namespace TraducaoTIME.Services.Transcription
 
         public override void Stop()
         {
-            Logger.Info($"[{ServiceName}] Parando...");
+            this.Logger.Info($"[{ServiceName}] Parando...");
             ShouldStop = true;
         }
     }
