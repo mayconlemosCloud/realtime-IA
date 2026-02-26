@@ -383,11 +383,11 @@ namespace TraducaoTIME.UIWPF
                 // Abrir janela de pergunta
                 QuestionPromptWindow promptWindow = new QuestionPromptWindow();
                 promptWindow.Owner = this;
-                
+
                 if (promptWindow.ShowDialog() == true && promptWindow.WasAnalyzed)
                 {
                     string question = promptWindow.Question ?? "";
-                    
+
                     // Executar análise em background
                     System.Threading.ThreadPool.QueueUserWorkItem(async (_) =>
                     {

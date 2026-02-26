@@ -31,7 +31,7 @@
                            FontSize="12"
                            Foreground="#AAAAAA"
                            Margin="0,0,0,10"/>
-                
+
                 <TextBox Name="QuestionTextBox"
                          Height="80"
                          TextWrapping="Wrap"
