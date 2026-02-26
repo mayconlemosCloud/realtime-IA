@@ -1,9 +1,7 @@
 using System;
 using System.Windows;
 using System.Threading.Tasks;
-using TraducaoTIME.Utils;
-using TraducaoTIME.Features.TranscricaoSemDiarizacao;
-using TraducaoTIME.Features.TranscricaoComDiarizacao;
+using TraducaoTIME.Services.Logging;
 
 namespace TraducaoTIME.UIWPF
 {
@@ -40,13 +38,6 @@ namespace TraducaoTIME.UIWPF
                 System.Windows.MessageBox.Show($"Erro na interface: {args.Exception.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
                 args.Handled = true;
             };
-
-            // Conectar callbacks de transcrição à MainWindow
-            if (MainWindow is MainWindow mainWindow)
-            {
-                TranscricaoSemDiarizacao.OnTranscriptionReceivedSegment = (segment) => mainWindow.ShowTranslation(segment);
-                TranscricaoComDiarizacao.OnTranscriptionReceivedSegment = (segment) => mainWindow.ShowTranslation(segment);
-            }
         }
     }
 }

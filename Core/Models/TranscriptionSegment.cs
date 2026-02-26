@@ -1,6 +1,6 @@
 using System;
 
-namespace TraducaoTIME.Utils
+namespace TraducaoTIME.Core.Models
 {
     public class TranscriptionSegment
     {

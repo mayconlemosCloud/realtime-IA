@@ -1,14 +1,26 @@
 using System;
 using System.Windows;
+using TraducaoTIME.Core.Abstractions;
+using TraducaoTIME.Services.Configuration;
 using TraducaoTIME.Utils;
 
 namespace TraducaoTIME.UIWPF
 {
     public partial class ConfigWindow : Window
     {
+        private readonly IConfigurationService _configurationService;
+
         public ConfigWindow()
         {
             InitializeComponent();
+            _configurationService = Services.Configuration.AppConfig.Instance;
+            LoadConfiguration();
+        }
+
+        public ConfigWindow(IConfigurationService configurationService, ILogger logger)
+        {
+            InitializeComponent();
+            _configurationService = configurationService;
             LoadConfiguration();
         }
 
@@ -19,7 +31,7 @@ namespace TraducaoTIME.UIWPF
             ComboBoxTranscricao.Items.Add("2 - Transcrição COM diarização (tempo real)");
             ComboBoxTranscricao.Items.Add("3 - Apenas capturar áudio (sem transcrição)");
 
-            int selectedTranscricao = int.Parse(AppConfig.Instance.SelectedOption) - 1;
+            int selectedTranscricao = int.Parse(_configurationService.SelectedOption) - 1;
             ComboBoxTranscricao.SelectedIndex = Math.Max(0, selectedTranscricao);
             ComboBoxTranscricao.SelectionChanged += ComboBoxTranscricao_SelectionChanged;
 
@@ -41,7 +53,7 @@ namespace TraducaoTIME.UIWPF
                     string displayName = $"{dispositivos[i].FriendlyName} ({dispositivos[i].DataFlow})";
                     ComboBoxDispositivo.Items.Add(displayName);
 
-                    if (dispositivos[i].FriendlyName == AppConfig.Instance.SelectedDeviceName)
+                    if (dispositivos[i].FriendlyName == _configurationService.SelectedDeviceName)
                     {
                         selectedIndex = i;
                     }
@@ -61,7 +73,7 @@ namespace TraducaoTIME.UIWPF
             if (ComboBoxTranscricao.SelectedIndex >= 0)
             {
                 string selectedOption = (ComboBoxTranscricao.SelectedIndex + 1).ToString();
-                AppConfig.Instance.SelectedOption = selectedOption;
+                _configurationService.SelectedOption = selectedOption;
             }
         }
 
@@ -73,7 +85,7 @@ namespace TraducaoTIME.UIWPF
                 {
                     var dispositivos = AudioDeviceSelector.GetDispositivosDisponiveis();
                     var selectedDevice = dispositivos[ComboBoxDispositivo.SelectedIndex];
-                    AppConfig.Instance.SelectedDeviceName = selectedDevice.FriendlyName;
+                    _configurationService.SelectedDeviceName = selectedDevice.FriendlyName;
                 }
                 catch (Exception ex)
                 {

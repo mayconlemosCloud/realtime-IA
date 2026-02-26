@@ -5,7 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace TraducaoTIME.Utils
+namespace TraducaoTIME.Services.AI
 {
     public class AIService
     {

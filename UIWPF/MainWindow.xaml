@@ -7,13 +7,15 @@
         Width="800"
         WindowStartupLocation="CenterScreen"
         Background="#2D2D2D">
+    <Window.Resources>
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+    </Window.Resources>
     <DockPanel>
         <!-- Menu -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="CONFIG"
                       Click="ConfigMenu_Click"/>
-            <MenuItem Header="IA"
-                      Click="IAMenu_Click"/>
         </Menu>
 
         <!-- Status Bar -->
@@ -50,14 +52,6 @@
             <Separator Width="1"
                        Background="#444"
                        Margin="10,0"/>
-            <CheckBox Name="enableRAGCheckBox"
-                      Content="Ativar RAG"
-                      IsChecked="True"
-                      Foreground="White"
-                      Background="Transparent"
-                      VerticalAlignment="Center"
-                      Margin="10,5"
-                      Padding="5"/>
         </StackPanel>
 
         <!-- Main Grid com Splitter -->
@@ -126,14 +120,17 @@
                                             </Grid>
 
                                             <!-- Sugestão em Inglês (Sem Bindings complexos) -->
-                                            <StackPanel Margin="20,5,0,0">
+                                            <StackPanel Margin="20,5,0,0"
+                                                        Visibility="{Binding ShowSuggestion, Converter={StaticResource BoolToVisibilityConverter}}">
                                                 <!-- Loading -->
                                                 <TextBlock Text="⏳ Gerando sugestão..."
                                                            Foreground="#888888"
-                                                           FontStyle="Italic"/>
+                                                           FontStyle="Italic"
+                                                           Visibility="{Binding IsLoadingSuggestion, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
                                                 <!-- Sugestão -->
-                                                <StackPanel Margin="0,5,0,0">
+                                                <StackPanel Margin="0,5,0,0"
+                                                            Visibility="{Binding IsLoadingSuggestion, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                                                     <TextBlock Text="💬 English Suggestion:"
                                                                Foreground="#AAAAAA"
                                                                FontSize="11"

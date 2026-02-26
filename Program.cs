@@ -1,15 +1,21 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
 using dotenv.net;
+using TraducaoTIME.Core.Abstractions;
+using TraducaoTIME.Services;
+using TraducaoTIME.Services.Configuration;
+using TraducaoTIME.Services.Events;
+using TraducaoTIME.Services.History;
+using TraducaoTIME.Services.Logging;
 using TraducaoTIME.UIWPF;
-using TraducaoTIME.Utils;
+using TraducaoTIME.UIWPF.ViewModels;
 
 namespace TraducaoTIME
 {
     class Program
     {
-        // Importar a função para alocar console
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool AllocConsole();
 
@@ -18,40 +24,58 @@ namespace TraducaoTIME
         {
             try
             {
-                // Alocar console para debug
                 AllocConsole();
 
-                Logger.Info("===== APLICAÇÃO INICIADA =====");
-
-                // Carregar variáveis do arquivo .env
-                Logger.Info("Carregando variáveis de ambiente (.env)...");
+                // Carregar variáveis de ambiente
                 DotEnv.Load();
-                Logger.Info("Variáveis de ambiente carregadas com sucesso");
 
-                Logger.Info("Criando aplicação WPF...");
+                // Configurar serviços com DI
+                var services = new ServiceCollection();
+                ConfigureServices(services);
+                var serviceProvider = services.BuildServiceProvider();
+
+                var logger = serviceProvider.GetRequiredService<ILogger>();
+                logger.Info("===== APLICAÇÃO INICIADA =====");
+
                 // Criar aplicação WPF
                 App app = new App();
 
-                Logger.Info("Criando janela principal...");
-                // Criar janela principal
-                MainWindow mainWindow = new MainWindow();
+                // Criar janela principal com DI
+                var mainWindow = serviceProvider.GetRequiredService<MainWindow>();
 
-                Logger.Info("Executando aplicação...");
-                // Executar aplicação
+                logger.Info("Executando aplicação...");
                 app.Run(mainWindow);
 
-                Logger.Info("Aplicação finalizada com sucesso");
+                logger.Info("Aplicação finalizada com sucesso");
             }
             catch (Exception ex)
             {
                 Logger.Error("ERRO FATAL NA APLICAÇÃO", ex);
-                System.Windows.MessageBox.Show(
+                MessageBox.Show(
                     $"Erro fatal:\n{ex.GetType().Name}: {ex.Message}\n\nVerifique o arquivo de log para mais detalhes.",
                     "Erro Crítico",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error
                 );
             }
+        }
+
+        private static void ConfigureServices(IServiceCollection services)
+        {
+            // Abstrações Centralizadas
+            services.AddSingleton<ILogger, LoggerProvider>();
+            services.AddSingleton<IConfigurationService, TraducaoTIME.Services.Configuration.AppConfig>();
+            services.AddSingleton<IHistoryManager, TraducaoTIME.Services.History.HistoryManager>();
+            services.AddSingleton<ITranscriptionEventPublisher, TranscriptionEventPublisher>();
+
+            // Factory
+            services.AddSingleton<TranscriptionServiceFactory>();
+
+            // ViewModels
+            services.AddSingleton<MainWindowViewModel>();
+
+            // UI
+            services.AddSingleton<MainWindow>();
         }
     }
 }

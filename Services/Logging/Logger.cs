@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Diagnostics;
 
-namespace TraducaoTIME.Utils
+namespace TraducaoTIME.Services.Logging
 {
     public static class Logger
     {

@@ -7,10 +7,10 @@ namespace TraducaoTIME.UIWPF.Models
     public class FinalizedLineItem : INotifyPropertyChanged
     {
         private string _text = "";
+        private string _speaker = "";
         private string _englishSuggestion = "";
         private bool _isLoadingSuggestion = false;
         private bool _showSuggestion = false;
-        private string _speaker = "";
 
         public string Text
         {

@@ -47,9 +47,9 @@ namespace TraducaoTIME.UIWPF.ViewModels
                 };
 
                 System.Diagnostics.Debug.WriteLine($"[ViewModel] Item criado com DisplayText='{item.DisplayText}'");
-                
+
                 _finalizedLines.Add(item);
-                
+
                 System.Diagnostics.Debug.WriteLine($"[ViewModel] Item adicionado. Total: {_finalizedLines.Count}");
             }
             catch (Exception ex)
