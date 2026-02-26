@@ -1,0 +1,76 @@
+<Window x:Class="TraducaoTIME.UIWPF.QuestionPromptWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Análise com IA"
+        Height="250"
+        Width="500"
+        WindowStartupLocation="CenterOwner"
+        Background="#2D2D2D"
+        Foreground="White"
+        ResizeMode="NoResize"
+        WindowStyle="SingleBorderWindow">
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top"
+                Background="#1E1E1E"
+                BorderBrush="#444"
+                BorderThickness="0,0,0,1"
+                Padding="15">
+            <TextBlock Text="❓ Faça uma pergunta sobre a conversa"
+                       FontSize="14"
+                       FontWeight="Bold"
+                       Foreground="White"/>
+        </Border>
+
+        <!-- Content -->
+        <Border DockPanel.Dock="Top"
+                Padding="20">
+            <StackPanel>
+                <TextBlock Text="Digite sua pergunta:"
+                           FontSize="12"
+                           Foreground="#AAAAAA"
+                           Margin="0,0,0,10"/>
+                
+                <TextBox Name="QuestionTextBox"
+                         Height="80"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         Background="#1E1E1E"
+                         Foreground="White"
+                         BorderBrush="#444"
+                         BorderThickness="1"
+                         Padding="10"
+                         FontSize="11"
+                         VerticalAlignment="Stretch"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Footer with Buttons -->
+        <Border DockPanel.Dock="Bottom"
+                Background="#1E1E1E"
+                BorderBrush="#444"
+                BorderThickness="0,1,0,0"
+                Padding="15">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Name="AnalyzeButton"
+                        Content="🔍 Analisar"
+                        Click="Analyze_Click"
+                        Padding="15,8"
+                        Margin="0,0,10,0"
+                        Background="#0078D4"
+                        Foreground="White"
+                        FontWeight="Bold"
+                        Cursor="Hand"/>
+                <Button Name="CancelButton"
+                        Content="✕ Cancelar"
+                        Click="Cancel_Click"
+                        Padding="15,8"
+                        Background="#555"
+                        Foreground="White"
+                        Cursor="Hand"/>
+            </StackPanel>
+        </Border>
+    </DockPanel>
+</Window>

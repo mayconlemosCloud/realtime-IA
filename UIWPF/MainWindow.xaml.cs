@@ -378,7 +378,80 @@ namespace TraducaoTIME.UIWPF
 
         private void IAMenu_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Abrir janela de IA
+            try
+            {
+                // Abrir janela de pergunta
+                QuestionPromptWindow promptWindow = new QuestionPromptWindow();
+                promptWindow.Owner = this;
+                
+                if (promptWindow.ShowDialog() == true && promptWindow.WasAnalyzed)
+                {
+                    string question = promptWindow.Question ?? "";
+                    
+                    // Executar análise em background
+                    System.Threading.ThreadPool.QueueUserWorkItem(async (_) =>
+                    {
+                        try
+                        {
+                            // Obter estado do checkbox RAG
+                            bool useRAG = true;
+                            Dispatcher.Invoke(() =>
+                            {
+                                if (FindName("enableRAGCheckBox") is System.Windows.Controls.CheckBox ragCheckBox)
+                                {
+                                    useRAG = ragCheckBox.IsChecked ?? true;
+                                }
+                            });
+
+                            System.Diagnostics.Debug.WriteLine($"[IAMenu] Usando RAG: {useRAG}");
+
+                            // Ler contexto da conversa do arquivo
+                            string conversationContext = "";
+                            if (_historyManager != null)
+                            {
+                                conversationContext = _historyManager.GetFullHistory();
+                            }
+
+                            // Chamar AIService para análise com RAG
+                            var aiService = AIService.Instance;
+                            string analysis;
+
+                            if (useRAG)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[IAMenu] Analisando COM RAG: {question}");
+                                analysis = aiService.AnalyzeConversationWithRAG(question, conversationContext);
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[IAMenu] Análise SEM RAG (apenas contexto geral)");
+                                // Se RAG está desativado, gera análise apenas com a pergunta
+                                analysis = aiService.AnalyzeConversationWithRAG(question, conversationContext);
+                            }
+
+                            // Abrir janela detalhada com resultado
+                            Dispatcher.Invoke(() =>
+                            {
+                                DetailedResponseWindow responseWindow = new DetailedResponseWindow(question, analysis);
+                                responseWindow.Owner = this;
+                                responseWindow.ShowDialog();
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[IAMenu] Erro durante análise: {ex.Message}");
+                            Dispatcher.Invoke(() =>
+                            {
+                                MessageBox.Show($"Erro ao analisar: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                            });
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[IAMenu] Erro geral: {ex.Message}");
+                MessageBox.Show($"Erro: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void GenerateSuggestion_Click(object sender, RoutedEventArgs e)
