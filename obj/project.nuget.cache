@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "kRqNJuZOSB8=",
+  "dgSpecHash": "koY4VlE1VuI=",
   "success": true,
   "projectFilePath": "C:\\Users\\lemos\\Desktop\\Projeto\\dotnet\\TraducaoTIME\\realTranslation.csproj",
   "expectedPackageFiles": [
@@ -51,7 +51,7 @@
       "code": "NU1603",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "realTranslation depends on Betalgo.OpenAI (>= 8.6.15) but Betalgo.OpenAI 8.6.15 was not found. Betalgo.OpenAI 8.7.0 was resolved instead.",
+      "message": "realTranslation depende de Betalgo.OpenAI (>= 8.6.15) mas Betalgo.OpenAI 8.6.15 não foi encontrado. Betalgo.OpenAI 8.7.0 foi resolvido.",
       "libraryId": "Betalgo.OpenAI",
       "targetGraphs": [
         "net9.0-windows7.0"
