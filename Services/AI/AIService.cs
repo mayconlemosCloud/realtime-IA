@@ -286,9 +286,8 @@ Responda de forma natural e conversacional, como se estivesse realmente conversa
         {
             try
             {
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-                client.Timeout = TimeSpan.FromSeconds(30);
+                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+                _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
                 var requestBody = new
                 {
@@ -309,7 +308,7 @@ Responda de forma natural e conversacional, como se estivesse realmente conversa
 
                 System.Diagnostics.Debug.WriteLine("[OpenAI] Enviando para: https://api.openai.com/v1/chat/completions");
 
-                var response = await client.PostAsync("https://api.openai.com/v1/chat/completions", content).ConfigureAwait(false);
+                var response = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", content).ConfigureAwait(false);
 
                 System.Diagnostics.Debug.WriteLine($"[OpenAI] Status Code: {response.StatusCode}");
 
@@ -507,7 +506,7 @@ Responda de forma natural e conversacional, como se estivesse realmente conversa
         /// <summary>
         /// Analisa o histórico de conversa e fornece uma sugestão de resposta em inglês com contexto em português
         /// </summary>
-        public string AnalyzeConversationForEnglishSuggestion(string historyContent)
+        public async Task<string> AnalyzeConversationForEnglishSuggestionAsync(string historyContent)
         {
             try
             {
@@ -522,7 +521,7 @@ Responda de forma natural e conversacional, como se estivesse realmente conversa
                 if (_apiProvider == "openai" && !string.IsNullOrWhiteSpace(_apiKey))
                 {
                     System.Diagnostics.Debug.WriteLine("[AIService] Using OpenAI for English suggestion with context");
-                    return CallOpenAIForEnglishSuggestionWithContext(historyContent);
+                    return await CallOpenAIForEnglishSuggestionWithContextAsync(historyContent);
                 }
 
                 // Fallback para análise local em inglês
@@ -539,13 +538,12 @@ Responda de forma natural e conversacional, como se estivesse realmente conversa
         /// <summary>
         /// Chama OpenAI para gerar análise de contexto em português e sugestão em inglês
         /// </summary>
-        private string CallOpenAIForEnglishSuggestionWithContext(string historyContent)
+        private async Task<string> CallOpenAIForEnglishSuggestionWithContextAsync(string historyContent)
         {
             try
             {
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-                client.Timeout = TimeSpan.FromSeconds(30);
+                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+                _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
                 // Step 1: Gerar análise de contexto em português
                 string contextPrompt = @"Você é um analisador de conversas. Analise o histórico fornecido e responda APENAS em português:
@@ -570,12 +568,12 @@ Responda de forma concisa em 2-3 linhas, explicando rapidamente qual contexto le
 
                 var contextJson = System.Text.Json.JsonSerializer.Serialize(contextRequest);
                 var contextContent = new StringContent(contextJson, Encoding.UTF8, "application/json");
-                var contextResponse = client.PostAsync("https://api.openai.com/v1/chat/completions", contextContent).Result;
+                var contextResponse = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", contextContent).ConfigureAwait(false);
 
                 string contextAnalysis = "Contexto: ";
                 if (contextResponse.IsSuccessStatusCode)
                 {
-                    var contextResponseContent = contextResponse.Content.ReadAsStringAsync().Result;
+                    var contextResponseContent = await contextResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                     var contextJsonDoc = System.Text.Json.JsonDocument.Parse(contextResponseContent);
                     var contextRoot = contextJsonDoc.RootElement;
 
@@ -616,11 +614,11 @@ Write 2-3 very simple sentences. Use basic English (A2 level) - like a person le
 
                 var englishJson = System.Text.Json.JsonSerializer.Serialize(englishRequest);
                 var englishContent = new StringContent(englishJson, Encoding.UTF8, "application/json");
-                var englishResponse = client.PostAsync("https://api.openai.com/v1/chat/completions", englishContent).Result;
+                var englishResponse = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", englishContent).ConfigureAwait(false);
 
                 if (englishResponse.IsSuccessStatusCode)
                 {
-                    var englishResponseContent = englishResponse.Content.ReadAsStringAsync().Result;
+                    var englishResponseContent = await englishResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                     var englishJsonDoc = System.Text.Json.JsonDocument.Parse(englishResponseContent);
                     var englishRoot = englishJsonDoc.RootElement;
 
@@ -725,13 +723,12 @@ Write 2-3 very simple sentences. Use basic English (A2 level) - like a person le
         /// <summary>
         /// Chama OpenAI especificamente para sugestão em inglês (método legado, mantido para compatibilidade)
         /// </summary>
-        private string CallOpenAIForEnglishSuggestion(string systemPrompt, string userPrompt)
+        private async Task<string> CallOpenAIForEnglishSuggestionAsync(string systemPrompt, string userPrompt)
         {
             try
             {
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-                client.Timeout = TimeSpan.FromSeconds(30);
+                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+                _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
                 var requestBody = new
                 {
@@ -748,11 +745,11 @@ Write 2-3 very simple sentences. Use basic English (A2 level) - like a person le
                 var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = client.PostAsync("https://api.openai.com/v1/chat/completions", content).Result;
+                var response = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", content).ConfigureAwait(false);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var responseContent = response.Content.ReadAsStringAsync().Result;
+                    var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                     var jsonDoc = System.Text.Json.JsonDocument.Parse(responseContent);
                     var root = jsonDoc.RootElement;
 
@@ -890,64 +887,25 @@ Write 2-3 very simple sentences. Use basic English (A2 level) - like a person le
         }
 
         /// <summary>
-        /// Versão async que gera sugestão em inglês para uma frase específica com contexto
+        /// Gera sugestão em inglês com contexto da conversa (parâmetro opcional).
+        /// Com contexto: usa RAG | Sem contexto: análise simples de frase
         /// </summary>
-        public async Task<string> GetEnglishSuggestionAsync(string phrase, string conversationContext)
+        public async Task<string> GetEnglishSuggestionAsync(string phrase, string? conversationContext = null)
         {
-            return await Task.Run(() =>
+            try
             {
-                try
+                if (!string.IsNullOrWhiteSpace(conversationContext))
                 {
-                    // Combinar frase atual com contexto
+                    // Com RAG: combinar frase com contexto
                     string fullContent = $"Current phrase: {phrase}\n\nConversation context:\n{conversationContext}";
-
-                    // Chamar o método síncrono existente
-                    return AnalyzeConversationForEnglishSuggestion(fullContent);
+                    System.Diagnostics.Debug.WriteLine("[AIService] GetEnglishSuggestionAsync: Com contexto (RAG ativado)");
+                    return await AnalyzeConversationForEnglishSuggestionAsync(fullContent);
                 }
-                catch (Exception ex)
+                else
                 {
-                    System.Diagnostics.Debug.WriteLine($"[AIService] Error in GetEnglishSuggestionAsync: {ex.Message}");
-                    return $"Error generating suggestion: {ex.Message}";
-                }
-            });
-        }
+                    // Sem RAG: apenas análise de frase individual
+                    System.Diagnostics.Debug.WriteLine("[AIService] GetEnglishSuggestionAsync: Sem contexto (RAG desativado)");
 
-        /// <summary>
-        /// Gera sugestão em inglês COM RAG (usando contexto da conversa + contexto profissional)
-        /// </summary>
-        public async Task<string> GetEnglishSuggestionWithRAGAsync(string phrase, string conversationContext)
-        {
-            return await Task.Run(() =>
-            {
-                try
-                {
-                    // Combinar frase atual com contexto completo
-                    string fullContent = $"Current phrase: {phrase}\n\nConversation context:\n{conversationContext}";
-
-                    System.Diagnostics.Debug.WriteLine("[AIService] GetEnglishSuggestionWithRAGAsync: Usando RAG ativado");
-                    return AnalyzeConversationForEnglishSuggestion(fullContent);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[AIService] Error in GetEnglishSuggestionWithRAGAsync: {ex.Message}");
-                    return $"Error generating suggestion: {ex.Message}";
-                }
-            });
-        }
-
-        /// <summary>
-        /// Gera sugestão em inglês SEM RAG (apenas a frase, sem contexto da conversa)
-        /// </summary>
-        public async Task<string> GetEnglishSuggestionWithoutRAGAsync(string phrase)
-        {
-            return await Task.Run(() =>
-            {
-                try
-
-                {
-                    System.Diagnostics.Debug.WriteLine("[AIService] GetEnglishSuggestionWithoutRAGAsync: RAG desativado, sem contexto");
-
-                    // Apenas usar a frase sem contexto da conversa
                     string englishPrompt = @"You are a language assistant. 
 Analyze this sentence and provide a suggested response in A2 English (elementary/basic level) that:
 1. Says what you think about the main idea
@@ -958,30 +916,29 @@ Write 2-3 very simple sentences. Use basic English (A2 level).";
 
                     if (_apiProvider == "openai" && !string.IsNullOrWhiteSpace(_apiKey))
                     {
-                        return CallOpenAIForPhraseAnalysis(phrase, englishPrompt);
+                        return await CallOpenAIForPhraseAnalysisAsync(phrase, englishPrompt);
                     }
 
                     // Fallback para análise local
                     return GenerateLocalEnglishSuggestion(phrase);
                 }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[AIService] Error in GetEnglishSuggestionWithoutRAGAsync: {ex.Message}");
-                    return $"Error generating suggestion: {ex.Message}";
-                }
-            });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AIService] Error in GetEnglishSuggestionAsync: {ex.Message}");
+                return $"Error generating suggestion: {ex.Message}";
+            }
         }
 
         /// <summary>
         /// Chama OpenAI para análise de frase sem contexto
         /// </summary>
-        private string CallOpenAIForPhraseAnalysis(string phrase, string prompt)
+        private async Task<string> CallOpenAIForPhraseAnalysisAsync(string phrase, string prompt)
         {
             try
             {
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-                client.Timeout = TimeSpan.FromSeconds(30);
+                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+                _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
                 var requestBody = new
                 {
@@ -997,11 +954,11 @@ Write 2-3 very simple sentences. Use basic English (A2 level).";
 
                 var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = client.PostAsync("https://api.openai.com/v1/chat/completions", content).Result;
+                var response = await _httpClient.PostAsync("https://api.openai.com/v1/chat/completions", content).ConfigureAwait(false);
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var responseContent = response.Content.ReadAsStringAsync().Result;
+                    var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                     var jsonDoc = System.Text.Json.JsonDocument.Parse(responseContent);
                     var root = jsonDoc.RootElement;
 
@@ -1025,7 +982,7 @@ Write 2-3 very simple sentences. Use basic English (A2 level).";
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[AIService] Error in CallOpenAIForPhraseAnalysis: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[AIService] Error in CallOpenAIForPhraseAnalysisAsync: {ex.Message}");
                 return GenerateLocalEnglishSuggestion(phrase);
             }
 

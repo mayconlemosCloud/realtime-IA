@@ -62,7 +62,7 @@ namespace TraducaoTIME.Services.Transcription
                         var response = await httpClient.PostAsync(testUrl, new System.Net.Http.StringContent(""));
                         if (!response.IsSuccessStatusCode)
                         {
-                            throw new Exception($"Erro {response.StatusCode}: {response.ReasonPhrase}");
+                            throw new InvalidOperationException($"Erro {response.StatusCode}: {response.ReasonPhrase}");
                         }
                     }
                     this.Logger.Info($"[{ServiceName}] Autenticação Azure validada");
