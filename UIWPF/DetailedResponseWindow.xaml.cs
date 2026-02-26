@@ -10,7 +10,7 @@ namespace TraducaoTIME.UIWPF
         public DetailedResponseWindow(string question, string content)
         {
             InitializeComponent();
-            
+
             QuestionTextBlock.Text = $"❓ Pergunta: {question}";
             ContentTextBlock.Text = content;
             _fullContent = content;
@@ -33,7 +33,7 @@ namespace TraducaoTIME.UIWPF
             try
             {
                 System.Windows.Forms.Clipboard.SetText(_fullContent);
-                
+
                 // Feedback visual
                 var originalContent = StatusTextBlock.Text;
                 StatusTextBlock.Text = "✓ Copiado para área de transferência!";
