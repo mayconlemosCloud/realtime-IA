@@ -5,88 +5,74 @@ using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using TraducaoTIME.Core.Abstractions;
 using TraducaoTIME.Core.Models;
-using TraducaoTIME.Services.Logging;
 
 namespace TraducaoTIME.Services.Transcription
 {
-    public class CapturaAudioService : ITranscriptionService
+    /// <summary>
+    /// Serviço de simples captura de áudio (sem transcrição ou tradução).
+    /// Útil para registrar não processado.
+    /// </summary>
+    public class CapturaAudioService : BaseTranscriptionService
     {
-        private readonly IConfigurationService _configurationService;
-        private readonly ITranscriptionEventPublisher _eventPublisher;
-        private readonly IHistoryManager _historyManager;
-        private readonly ILogger _logger;
-        private bool _shouldStop = false;
         private long _totalBytesRecorded = 0;
 
-        public string ServiceName => "Captura de Áudio";
+        public override string ServiceName => "Captura de Áudio";
 
         public CapturaAudioService(
             IConfigurationService configurationService,
             ITranscriptionEventPublisher eventPublisher,
             IHistoryManager historyManager,
-            ILogger logger)
+            ILogger logger,
+            AppSettings settings)
+            : base(configurationService, eventPublisher, historyManager, logger, settings)
         {
-            _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
-            _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
-            _historyManager = historyManager ?? throw new ArgumentNullException(nameof(historyManager));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<TranscriptionResult> StartAsync(MMDevice device, CancellationToken cancellationToken = default)
+        public override async Task<TranscriptionResult> StartAsync(MMDevice device, CancellationToken cancellationToken = default)
         {
             try
             {
-                _logger.Info($"[{ServiceName}] Iniciando...");
-                _eventPublisher.OnTranscriptionStarted();
+                Logger.Info($"[{ServiceName}] Iniciando...");
+                EventPublisher.OnTranscriptionStarted();
 
-                IWaveIn capture = device.DataFlow == DataFlow.Render
-                    ? new WasapiLoopbackCapture(device)
-                    : new WasapiCapture(device);
-
-                capture.WaveFormat = new WaveFormat(16000, 16, 1);
+                IWaveIn capture = CreateWaveCapture(device);
 
                 _totalBytesRecorded = 0;
-                _shouldStop = false;
+                ShouldStop = false;
 
                 capture.DataAvailable += (sender, e) =>
                 {
                     _totalBytesRecorded += e.BytesRecorded;
-                    _logger.Debug($"[{ServiceName}] Capturados {e.BytesRecorded} bytes (Total: {_totalBytesRecorded})");
+                    Logger.Debug($"[{ServiceName}] Capturados {e.BytesRecorded} bytes (Total: {_totalBytesRecorded})");
                 };
 
                 var startSegment = new TranscriptionSegment($"🎤 Capturando áudio de {device.FriendlyName}...", isFinal: true);
-                _eventPublisher.OnSegmentReceived(startSegment);
+                EventPublisher.OnSegmentReceived(startSegment);
 
                 capture.StartRecording();
-                _logger.Info($"[{ServiceName}] Captura iniciada");
+                Logger.Info($"[{ServiceName}] Captura iniciada");
 
-                while (!_shouldStop && !cancellationToken.IsCancellationRequested)
+                while (!ShouldStop && !cancellationToken.IsCancellationRequested)
                 {
                     await Task.Delay(100, cancellationToken).ConfigureAwait(false);
                 }
 
                 capture.StopRecording();
-                _logger.Info($"[{ServiceName}] Captura finalizada. Total: {_totalBytesRecorded} bytes");
+                Logger.Info($"[{ServiceName}] Captura finalizada. Total: {_totalBytesRecorded} bytes");
 
                 var endSegment = new TranscriptionSegment($"✓ Captura finalizada. Total: {_totalBytesRecorded} bytes", isFinal: true);
-                _eventPublisher.OnSegmentReceived(endSegment);
+                EventPublisher.OnSegmentReceived(endSegment);
 
-                _eventPublisher.OnTranscriptionCompleted();
+                EventPublisher.OnTranscriptionCompleted();
 
                 return new TranscriptionResult { Success = true };
             }
             catch (Exception ex)
             {
-                _logger.Error($"[{ServiceName}] Erro fatal", ex);
-                _eventPublisher.OnErrorOccurred(ex);
+                Logger.Error($"[{ServiceName}] Erro fatal", ex);
+                EventPublisher.OnErrorOccurred(ex);
                 return new TranscriptionResult { Success = false, ErrorMessage = ex.Message };
             }
-        }
-
-        public void Stop()
-        {
-            _logger.Info($"[{ServiceName}] Parando...");
-            _shouldStop = true;
         }
     }
 }

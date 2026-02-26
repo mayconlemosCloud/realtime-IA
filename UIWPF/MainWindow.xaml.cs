@@ -16,6 +16,7 @@ namespace TraducaoTIME.UIWPF
         private readonly TranscriptionServiceFactory _transcriptionFactory;
         private readonly ILogger _logger;
         private readonly MainWindowViewModel _viewModel;
+        private readonly IAIService _aiService;
 
         private ITranscriptionService? _currentTranscriptionService;
         private System.Threading.CancellationTokenSource? _transcriptionCts;
@@ -26,7 +27,8 @@ namespace TraducaoTIME.UIWPF
             IConfigurationService configurationService,
             TranscriptionServiceFactory transcriptionFactory,
             ILogger logger,
-            MainWindowViewModel viewModel)
+            MainWindowViewModel viewModel,
+            IAIService aiService)
         {
             InitializeComponent();
 
@@ -36,6 +38,7 @@ namespace TraducaoTIME.UIWPF
             _transcriptionFactory = transcriptionFactory ?? throw new ArgumentNullException(nameof(transcriptionFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+            _aiService = aiService ?? throw new ArgumentNullException(nameof(aiService));
 
             this.DataContext = _viewModel;
 
@@ -247,7 +250,7 @@ namespace TraducaoTIME.UIWPF
         {
             if (sender is System.Windows.Controls.Button btn && btn.Tag is FinalizedLineItem item)
             {
-                System.Threading.ThreadPool.QueueUserWorkItem(async (_) =>
+                System.Threading.ThreadPool.QueueUserWorkItem((_) =>
                 {
                     try
                     {
@@ -258,8 +261,7 @@ namespace TraducaoTIME.UIWPF
                         });
 
                         string conversationContext = _historyManager.GetFormattedHistory();
-                        var aiService = AIService.Instance;
-                        string suggestion = await aiService.GetEnglishSuggestionWithRAGAsync(item.Text, conversationContext);
+                        string suggestion = _aiService.AnalyzeConversationWithRAG(item.Text, conversationContext);
 
                         Dispatcher.Invoke(() =>
                         {

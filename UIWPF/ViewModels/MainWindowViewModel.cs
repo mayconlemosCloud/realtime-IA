@@ -33,30 +33,16 @@ namespace TraducaoTIME.UIWPF.ViewModels
 
         public void AddFinalizedLine(string text, string? speaker = null)
         {
-            try
+            var item = new FinalizedLineItem
             {
-                System.Diagnostics.Debug.WriteLine($"[ViewModel] AddFinalizedLine: Speaker='{speaker}', Text='{text}'");
+                Text = text,
+                Speaker = speaker ?? "",
+                EnglishSuggestion = "",
+                ShowSuggestion = false,
+                IsLoadingSuggestion = false
+            };
 
-                var item = new FinalizedLineItem
-                {
-                    Text = text,
-                    Speaker = speaker ?? "",
-                    EnglishSuggestion = "",
-                    ShowSuggestion = false,
-                    IsLoadingSuggestion = false
-                };
-
-                System.Diagnostics.Debug.WriteLine($"[ViewModel] Item criado com DisplayText='{item.DisplayText}'");
-
-                _finalizedLines.Add(item);
-
-                System.Diagnostics.Debug.WriteLine($"[ViewModel] Item adicionado. Total: {_finalizedLines.Count}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[ViewModel] ERRO em AddFinalizedLine: {ex.GetType().Name}: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[ViewModel] Stack: {ex.StackTrace}");
-            }
+            _finalizedLines.Add(item);
         }
 
         public void ClearAllLines()

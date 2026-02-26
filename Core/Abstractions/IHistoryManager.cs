@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TraducaoTIME.Core.Abstractions;
 
 namespace TraducaoTIME.Core.Abstractions
 {
@@ -10,12 +11,5 @@ namespace TraducaoTIME.Core.Abstractions
         string GetFormattedHistory();
         void Clear();
         int Count { get; }
-    }
-
-    public class HistoryEntry
-    {
-        public string Speaker { get; set; } = "";
-        public string Text { get; set; } = "";
-        public DateTime Timestamp { get; set; } = DateTime.Now;
     }
 }

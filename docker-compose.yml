@@ -1,4 +1,0 @@
-services: {}
-
-# Este arquivo é mantido para compatibilidade futura
-# Atualmente, o projeto usa apenas OpenAI (sem Docker)

@@ -1,65 +1,27 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using TraducaoTIME.Core.Abstractions;
 
 namespace TraducaoTIME.Services.History
 {
+    /// <summary>
+    /// Gerenciador centralizado de histórico de conversas.
+    /// Mantém histórico em memória e delega persistência para IHistoryStorage.
+    /// </summary>
     public class HistoryManager : IHistoryManager
     {
-        private List<HistoryEntry> _entries = new List<HistoryEntry>();
-        private string _historyFilePath;
-        private readonly object _fileLock = new object();
+        private readonly List<HistoryEntry> _entries = new();
+        private readonly IHistoryStorage _storage;
+        private readonly ILogger _logger;
 
         public int Count => _entries.Count;
 
-        public HistoryManager()
+        public HistoryManager(IHistoryStorage storage, ILogger logger)
         {
-            try
-            {
-                string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                string appFolder = Path.Combine(appDataPath, "TraducaoTIME");
-                string historyFolder = Path.Combine(appFolder, "Historico");
-
-                if (!Directory.Exists(historyFolder))
-                {
-                    Directory.CreateDirectory(historyFolder);
-                }
-
-                string fileName = $"conversa_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt";
-                _historyFilePath = Path.Combine(historyFolder, fileName);
-
-                InitializeFile();
-            }
-            catch
-            {
-                _historyFilePath = Path.Combine(Path.GetTempPath(), $"conversa_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt");
-            }
-        }
-
-        private void InitializeFile()
-        {
-            lock (_fileLock)
-            {
-                try
-                {
-                    using (StreamWriter writer = new StreamWriter(_historyFilePath, false, Encoding.UTF8))
-                    {
-                        writer.WriteLine($"═══════════════════════════════════════════════════════");
-                        writer.WriteLine($"HISTÓRICO DE CONVERSA");
-                        writer.WriteLine($"Data/Hora: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
-                        writer.WriteLine($"═══════════════════════════════════════════════════════");
-                        writer.WriteLine();
-                        writer.Flush();
-                    }
-                }
-                catch
-                {
-                    // Silenciosamente ignora erros
-                }
-            }
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public void AddMessage(string speaker, string text)
@@ -76,25 +38,8 @@ namespace TraducaoTIME.Services.History
 
             _entries.Add(entry);
 
-            // Escrever em arquivo também
-            lock (_fileLock)
-            {
-                try
-                {
-                    using (var fileStream = new FileStream(_historyFilePath, FileMode.Append, FileAccess.Write, FileShare.Read))
-                    using (var writer = new StreamWriter(fileStream, Encoding.UTF8))
-                    {
-                        writer.WriteLine($"[{entry.Timestamp:HH:mm:ss}] {speaker}:");
-                        writer.WriteLine(text);
-                        writer.WriteLine();
-                        writer.Flush();
-                    }
-                }
-                catch
-                {
-                    // Silenciosamente ignora erros de I/O
-                }
-            }
+            // Fire and forget - não bloqueia a UI
+            _ = _storage.SaveAsync(entry);
         }
 
         public IEnumerable<HistoryEntry> GetHistory()
@@ -117,6 +62,8 @@ namespace TraducaoTIME.Services.History
         public void Clear()
         {
             _entries.Clear();
+            // Fire and forget
+            _ = _storage.ClearAsync();
         }
     }
 }

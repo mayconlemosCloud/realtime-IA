@@ -4,62 +4,29 @@ using System.Text;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using TraducaoTIME.Core.Abstractions;
+using TraducaoTIME.Core.Models;
 
 namespace TraducaoTIME.Services.AI
 {
-    public class AIService
+    /// <summary>
+    /// Serviço de IA que implementa análise e processamento de linguagem natural.
+    /// Suporta tanto análise local quanto integração com OpenAI.
+    /// </summary>
+    public class AIService : IAIService
     {
-        private static AIService? _instance;
-        private string? _apiKey;
-        private string _apiProvider = "local"; // "local" ou "openai"
-        private HttpClient _httpClient = new HttpClient();
+        private readonly string? _apiKey;
+        private readonly string _apiProvider = "local"; // "local" ou "openai"
+        private readonly HttpClient _httpClient;
+        private readonly ILogger _logger;
 
-        public static AIService Instance
+        public AIService(HttpClient httpClient, ILogger logger, AppSettings settings)
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new AIService();
-                }
-                return _instance;
-            }
-        }
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        private AIService()
-        {
-            // Carregar configurações da API se disponível
-            LoadAPIConfiguration();
-        }
-
-        private void LoadAPIConfiguration()
-        {
-            try
-            {
-                var apiKey = Environment.GetEnvironmentVariable("AI_API_KEY");
-                var apiProvider = Environment.GetEnvironmentVariable("AI_PROVIDER");
-
-                System.Diagnostics.Debug.WriteLine($"[AIService] API_KEY carregada: {(apiKey != null ? "SIM (tamanho: " + apiKey.Length + ")" : "NÃO")}");
-                System.Diagnostics.Debug.WriteLine($"[AIService] AI_PROVIDER: {apiProvider}");
-
-                if (!string.IsNullOrWhiteSpace(apiKey))
-                {
-                    _apiKey = apiKey;
-                    System.Diagnostics.Debug.WriteLine($"[AIService] API Key configurada com sucesso");
-                }
-
-                if (!string.IsNullOrWhiteSpace(apiProvider))
-                {
-                    _apiProvider = apiProvider.ToLower();
-                    System.Diagnostics.Debug.WriteLine($"[AIService] Provider setado para: {_apiProvider}");
-                }
-
-                System.Diagnostics.Debug.WriteLine($"[AIService] Configuração carregada: Provider={_apiProvider}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[AIService] Erro ao carregar configurações: {ex.Message}");
-            }
+            _apiKey = settings?.AI?.ApiKey ?? "";
+            _apiProvider = settings?.AI?.Provider?.ToLower() ?? "local";
         }
 
         /// <summary>
@@ -157,7 +124,7 @@ namespace TraducaoTIME.Services.AI
         /// <summary>
         /// Extrai palavras-chave de uma pergunta
         /// </summary>
-        private List<string> ExtractKeywords(string question)
+        public List<string> ExtractKeywords(string question)
         {
             var stopwords = new HashSet<string> { "o", "a", "um", "uma", "de", "para", "com", "é", "foi", "são", "e", "ou", "isso", "este", "esse", "aquele" };
 
@@ -192,7 +159,7 @@ namespace TraducaoTIME.Services.AI
         /// <summary>
         /// Gera uma resposta baseada na pergunta e contexto
         /// </summary>
-        private string GenerateResponse(string question, string context)
+        public string GenerateResponse(string question, string context)
         {
             // Tentar usar OpenAI se configurado
             if (_apiProvider == "openai")
@@ -211,23 +178,10 @@ namespace TraducaoTIME.Services.AI
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("═══════════════════════════════════════════");
-                System.Diagnostics.Debug.WriteLine("[OpenAI] INICIANDO CHAMADA OPENAI");
-                System.Diagnostics.Debug.WriteLine($"[OpenAI] API Provider: {_apiProvider}");
-                System.Diagnostics.Debug.WriteLine($"[OpenAI] API Key presente: {!string.IsNullOrWhiteSpace(_apiKey)}");
-                System.Diagnostics.Debug.WriteLine($"[OpenAI] Pergunta: {question}");
-                System.Diagnostics.Debug.WriteLine($"[OpenAI] Contexto tamanho: {context?.Length ?? 0} caracteres");
-                System.Diagnostics.Debug.WriteLine("═══════════════════════════════════════════");
-
                 if (string.IsNullOrWhiteSpace(_apiKey))
                 {
-                    System.Diagnostics.Debug.WriteLine("[OpenAI] ❌ ERRO: Nenhuma API Key configurada!");
-                    System.Diagnostics.Debug.WriteLine("[OpenAI] Verifique o arquivo .env");
-                    System.Diagnostics.Debug.WriteLine("[OpenAI] AI_API_KEY=sua-chave-aqui");
                     return GenerateLocalResponse(question, context);
                 }
-
-                System.Diagnostics.Debug.WriteLine($"[OpenAI] ✅ API Key encontrada (tamanho: {_apiKey.Length})");
 
                 // Garantir que context não seja nulo
                 if (string.IsNullOrWhiteSpace(context))
@@ -239,24 +193,15 @@ namespace TraducaoTIME.Services.AI
                 var systemPrompt = BuildSystemPrompt(context);
                 var userPrompt = BuildUserPrompt(question, context);
 
-                System.Diagnostics.Debug.WriteLine("[OpenAI] Preparando requisição HTTP...");
-                System.Diagnostics.Debug.WriteLine($"[OpenAI] System Prompt tamanho: {systemPrompt.Length}");
-                System.Diagnostics.Debug.WriteLine($"[OpenAI] User Prompt tamanho: {userPrompt.Length}");
-
                 // Chamada HTTP assíncrona
                 var result = CallOpenAIAsync(systemPrompt, userPrompt).ConfigureAwait(false).GetAwaiter().GetResult();
 
                 if (!string.IsNullOrWhiteSpace(result))
                 {
-                    System.Diagnostics.Debug.WriteLine("[OpenAI] ✅ SUCESSO! Retornando resposta");
                     var response = new StringBuilder();
 
                     response.AppendLine($"{result}");
                     return response.ToString();
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("[OpenAI] ⚠️ Resposta NULL, usando análise local");
                 }
             }
             catch (Exception ex)
