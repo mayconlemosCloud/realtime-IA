@@ -20,7 +20,7 @@ namespace TraducaoTIME.UIWPF
         public MainWindow()
         {
             InitializeComponent();
-            
+
             // Inicializar ViewModel
             _viewModel = new MainWindowViewModel();
             this.DataContext = _viewModel;
@@ -50,15 +50,15 @@ namespace TraducaoTIME.UIWPF
                         {
                             Logger.Debug($"[ShowTranslation] Processando como FINAL");
                             System.Diagnostics.Debug.WriteLine($"[ShowTranslation] Processando como FINAL");
-                            
+
                             // Linha finalizada
                             if (!string.IsNullOrWhiteSpace(segment.Text))
                             {
                                 string speaker = !string.IsNullOrWhiteSpace(segment.Speaker) ? segment.Speaker : "";
-                                
+
                                 Logger.Debug($"[ShowTranslation] Adicionando ao ViewModel: Speaker='{speaker}', Text='{segment.Text}'");
                                 System.Diagnostics.Debug.WriteLine($"[ShowTranslation] Adicionando ao ViewModel: Speaker='{speaker}', Text='{segment.Text}'");
-                                
+
                                 // Adicionar ao ViewModel (ItemsControl)
                                 _viewModel.AddFinalizedLine(segment.Text, speaker);
 
@@ -86,7 +86,7 @@ namespace TraducaoTIME.UIWPF
                         {
                             Logger.Debug($"[ShowTranslation] Processando como INTERIM");
                             System.Diagnostics.Debug.WriteLine($"[ShowTranslation] Processando como INTERIM");
-                            
+
                             // Interim text
                             _currentInterimText = !string.IsNullOrWhiteSpace(segment.Speaker)
                                 ? $"{segment.Speaker}: {segment.Text}"
@@ -131,7 +131,7 @@ namespace TraducaoTIME.UIWPF
                     FontSize = 12
                 };
                 transcriptionParagraph.Inlines.Add(arrow);
-                
+
                 // Texto em ouro itálico
                 var text = new System.Windows.Documents.Run(_currentInterimText)
                 {
@@ -229,14 +229,14 @@ namespace TraducaoTIME.UIWPF
                 // Executar transcrição em task (com suporte apropriado a async/await)
                 Logger.Info("Iniciando Task.Run para transcrição");
                 System.Diagnostics.Debug.WriteLine("[ButtonIniciar] Iniciando Task.Run");
-                
+
                 System.Threading.Tasks.Task.Run(async () =>
                 {
                     try
                     {
                         Logger.Info("[TASK INICIADA] Thread ID: " + System.Threading.Thread.CurrentThread.ManagedThreadId);
                         System.Diagnostics.Debug.WriteLine("[TranscriptionTask] Task iniciada em thread: " + System.Threading.Thread.CurrentThread.ManagedThreadId);
-                        
+
                         Logger.Info("[TASK] Obtendo opção selecionada...");
                         string opcao = AppConfig.Instance.SelectedOption;
                         Logger.Info($"[TASK] Opção selecionada: '{opcao}'");
@@ -292,7 +292,7 @@ namespace TraducaoTIME.UIWPF
                             Logger.Error($"[TASK] ❌ InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}");
                             Logger.Error($"[TASK] ❌ InnerException Stack:\n{ex.InnerException.StackTrace}");
                         }
-                        
+
                         System.Diagnostics.Debug.WriteLine($"[TranscriptionTask] ❌ ERRO: {ex.GetType().Name}: {ex.Message}");
                         System.Diagnostics.Debug.WriteLine($"[TranscriptionTask] Stack: {ex.StackTrace}");
 
@@ -314,7 +314,7 @@ namespace TraducaoTIME.UIWPF
                         System.Diagnostics.Debug.WriteLine("[TranscriptionTask] === FINALLY ===");
                         isTranscribing = false;
                         Logger.Info("[TASK] Flag isTranscribing = false");
-                        
+
                         try
                         {
                             Logger.Info("[TASK] Invocando Dispatcher para restaurar botões...");
@@ -343,7 +343,7 @@ namespace TraducaoTIME.UIWPF
                 System.Diagnostics.Debug.WriteLine($"[ButtonIniciar] ERRO GERAL: {ex.GetType().Name}: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"[ButtonIniciar] Stack: {ex.StackTrace}");
                 System.Windows.MessageBox.Show($"Erro ao iniciar: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
-                
+
                 isTranscribing = false;
                 buttonIniciar.IsEnabled = true;
                 buttonParar.IsEnabled = false;
@@ -355,7 +355,7 @@ namespace TraducaoTIME.UIWPF
             isTranscribing = false;
             buttonIniciar.IsEnabled = true;
             buttonParar.IsEnabled = false;
-            
+
             // Parar as transcrições
             try
             {
@@ -371,7 +371,7 @@ namespace TraducaoTIME.UIWPF
             ConfigWindow configWindow = new ConfigWindow();
             configWindow.Owner = this;
             configWindow.ShowDialog();
-            
+
             // Atualizar status após fechar a janela de configuração
             AtualizarStatus();
         }
@@ -397,6 +397,16 @@ namespace TraducaoTIME.UIWPF
                             item.IsLoadingSuggestion = true;
                         });
 
+                        // Obter estado do checkbox RAG
+                        bool useRAG = true;
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (FindName("enableRAGCheckBox") is System.Windows.Controls.CheckBox ragCheckBox)
+                            {
+                                useRAG = ragCheckBox.IsChecked ?? true;
+                            }
+                        });
+
                         // Ler contexto da conversa do arquivo
                         string conversationContext = "";
                         if (_historyManager != null)
@@ -406,7 +416,18 @@ namespace TraducaoTIME.UIWPF
 
                         // Chamar AIService para gerar sugestão em inglês
                         var aiService = AIService.Instance;
-                        string suggestion = await aiService.GetEnglishSuggestionAsync(item.DisplayText, conversationContext);
+                        string suggestion;
+
+                        if (useRAG)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MainWindow] Gerando sugestão COM RAG para: {item.DisplayText}");
+                            suggestion = await aiService.GetEnglishSuggestionWithRAGAsync(item.DisplayText, conversationContext);
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[MainWindow] Gerando sugestão SEM RAG para: {item.DisplayText}");
+                            suggestion = await aiService.GetEnglishSuggestionWithoutRAGAsync(item.DisplayText);
+                        }
 
                         // Atualizar UI com a sugestão
                         Dispatcher.Invoke(() =>

@@ -98,9 +98,8 @@ namespace TraducaoTIME.Utils
                 }
             }
 
-            // Limitar a 10 linhas mais relevantes
+            // Incluir todas as linhas relevantes (sem limite)
             var topLines = relevantLines.OrderByDescending(l => CalculateRelevanceScore(l, keywords))
-                                       .Take(10)
                                        .ToList();
 
             if (topLines.Count == 0)
@@ -355,7 +354,7 @@ Responda de forma natural e conversacional, como se estivesse realmente conversa
                         new { role = "user", content = userPrompt }
                     },
                     temperature = 0.7,
-                    max_tokens = 500
+                    max_tokens = 4000
                 };
 
                 var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
@@ -621,7 +620,7 @@ Responda de forma concisa em 2-3 linhas, explicando rapidamente qual contexto le
                         new { role = "user", content = $"{contextPrompt}\n\nHistórico:\n{historyContent}" }
                     },
                     temperature = 0.7,
-                    max_tokens = 200
+                    max_tokens = 1000
                 };
 
                 var contextJson = System.Text.Json.JsonSerializer.Serialize(contextRequest);
@@ -667,7 +666,7 @@ Write 2-3 very simple sentences. Use basic English (A2 level) - like a person le
                         new { role = "user", content = $"{englishPrompt}\n\nConversation history:\n{historyContent}" }
                     },
                     temperature = 0.7,
-                    max_tokens = 300
+                    max_tokens = 2000
                 };
 
                 var englishJson = System.Text.Json.JsonSerializer.Serialize(englishRequest);
@@ -798,7 +797,7 @@ Write 2-3 very simple sentences. Use basic English (A2 level) - like a person le
                         new { role = "user", content = userPrompt }
                     },
                     temperature = 0.7,
-                    max_tokens = 300
+                    max_tokens = 2000
                 };
 
                 var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
@@ -966,6 +965,143 @@ Write 2-3 very simple sentences. Use basic English (A2 level) - like a person le
                     return $"Error generating suggestion: {ex.Message}";
                 }
             });
+        }
+
+        /// <summary>
+        /// Gera sugestão em inglês COM RAG (usando contexto da conversa + contexto profissional)
+        /// </summary>
+        public async Task<string> GetEnglishSuggestionWithRAGAsync(string phrase, string conversationContext)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    // Combinar frase atual com contexto completo
+                    string fullContent = $"Current phrase: {phrase}\n\nConversation context:\n{conversationContext}";
+
+                    System.Diagnostics.Debug.WriteLine("[AIService] GetEnglishSuggestionWithRAGAsync: Usando RAG ativado");
+                    return AnalyzeConversationForEnglishSuggestion(fullContent);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AIService] Error in GetEnglishSuggestionWithRAGAsync: {ex.Message}");
+                    return $"Error generating suggestion: {ex.Message}";
+                }
+            });
+        }
+
+        /// <summary>
+        /// Gera sugestão em inglês SEM RAG (apenas a frase, sem contexto da conversa)
+        /// </summary>
+        public async Task<string> GetEnglishSuggestionWithoutRAGAsync(string phrase)
+        {
+            return await Task.Run(() =>
+            {
+                try
+
+                {
+                    System.Diagnostics.Debug.WriteLine("[AIService] GetEnglishSuggestionWithoutRAGAsync: RAG desativado, sem contexto");
+
+                    // Apenas usar a frase sem contexto da conversa
+                    string englishPrompt = @"You are a language assistant. 
+Analyze this sentence and provide a suggested response in A2 English (elementary/basic level) that:
+1. Says what you think about the main idea
+2. Says what comes next
+3. Use very simple words and short sentences
+
+Write 2-3 very simple sentences. Use basic English (A2 level).";
+
+                    if (_apiProvider == "openai" && !string.IsNullOrWhiteSpace(_apiKey))
+                    {
+                        return CallOpenAIForPhraseAnalysis(phrase, englishPrompt);
+                    }
+
+                    // Fallback para análise local
+                    return GenerateLocalEnglishSuggestion(phrase);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AIService] Error in GetEnglishSuggestionWithoutRAGAsync: {ex.Message}");
+                    return $"Error generating suggestion: {ex.Message}";
+                }
+            });
+        }
+
+        /// <summary>
+        /// Chama OpenAI para análise de frase sem contexto
+        /// </summary>
+        private string CallOpenAIForPhraseAnalysis(string phrase, string prompt)
+        {
+            try
+            {
+                var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+                client.Timeout = TimeSpan.FromSeconds(30);
+
+                var requestBody = new
+                {
+                    model = "gpt-3.5-turbo",
+                    messages = new object[]
+                    {
+                        new { role = "system", content = "You are a professional language assistant." },
+                        new { role = "user", content = $"{prompt}\n\nPhrase: {phrase}" }
+                    },
+                    temperature = 0.7,
+                    max_tokens = 2000
+                };
+
+                var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = client.PostAsync("https://api.openai.com/v1/chat/completions", content).Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = response.Content.ReadAsStringAsync().Result;
+                    var jsonDoc = System.Text.Json.JsonDocument.Parse(responseContent);
+                    var root = jsonDoc.RootElement;
+
+                    if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                    {
+                        var firstChoice = choices[0];
+                        if (firstChoice.TryGetProperty("message", out var message))
+                        {
+                            if (message.TryGetProperty("content", out var contentProp))
+                            {
+                                return contentProp.GetString() ?? "No response";
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AIService] OpenAI error: {response.StatusCode}");
+                    return GenerateLocalEnglishSuggestion(phrase);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AIService] Error in CallOpenAIForPhraseAnalysis: {ex.Message}");
+                return GenerateLocalEnglishSuggestion(phrase);
+            }
+
+            return GenerateLocalEnglishSuggestion(phrase);
+        }
+
+        /// <summary>
+        /// Gera sugestão em inglês local básica
+        /// </summary>
+        private string GenerateLocalEnglishSuggestion(string phrase)
+        {
+            var response = new StringBuilder();
+            response.AppendLine("🤖 English Suggestion (Local Analysis):");
+            response.AppendLine();
+            response.AppendLine($"Phrase: {phrase}");
+            response.AppendLine();
+            response.AppendLine("Good. I understand. This is clear.");
+            response.AppendLine("What should we do next?");
+            response.AppendLine();
+
+            return response.ToString();
         }
     }
 }

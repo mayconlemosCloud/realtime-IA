@@ -47,6 +47,17 @@
                     Background="#D63031"
                     Foreground="White"
                     FontWeight="Bold"/>
+            <Separator Width="1"
+                       Background="#444"
+                       Margin="10,0"/>
+            <CheckBox Name="enableRAGCheckBox"
+                      Content="Ativar RAG"
+                      IsChecked="True"
+                      Foreground="White"
+                      Background="Transparent"
+                      VerticalAlignment="Center"
+                      Margin="10,5"
+                      Padding="5"/>
         </StackPanel>
 
         <!-- Main Grid com Splitter -->

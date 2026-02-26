@@ -1,0 +1,120 @@
+<Window x:Class="TraducaoTIME.UIWPF.DetailedResponseWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Resposta Detalhada"
+        Height="700"
+        Width="900"
+        WindowStartupLocation="CenterOwner"
+        Background="#2D2D2D"
+        Foreground="White"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanResize"
+        ShowInTaskbar="False">
+    
+    <DockPanel>
+        <!-- Título -->
+        <Border DockPanel.Dock="Top" 
+                Background="#1E1E1E" 
+                BorderBrush="#444" 
+                BorderThickness="0,0,0,1"
+                Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="📖 Leitura Completa" 
+                              FontSize="18" 
+                              FontWeight="Bold"
+                              Margin="0,0,0,5"
+                              Foreground="White"/>
+                    <TextBlock Name="QuestionTextBlock" 
+                              Text="Pergunta: ..." 
+                              FontSize="12"
+                              Foreground="#AAAAAA"
+                              TextWrapping="Wrap"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" 
+                           Orientation="Horizontal"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0">
+                    <Button Click="CopyAll_Click"
+                           Content="📋 Copiar Tudo"
+                           Padding="10,8"
+                           Margin="5"
+                           Background="#0078D4"
+                           Foreground="White"
+                           FontWeight="Bold"
+                           Cursor="Hand"/>
+                    <Button Click="Close_Click"
+                           Content="✕ Fechar"
+                           Padding="10,8"
+                           Margin="5"
+                           Background="#555"
+                           Foreground="White"
+                           Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Conteúdo -->
+        <ScrollViewer DockPanel.Dock="Top"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled"
+                     Background="#2D2D2D">
+            <TextBlock Name="ContentTextBlock"
+                      Text="Carregando..."
+                      Foreground="#E0E0E0"
+                      TextWrapping="Wrap"
+                      Padding="20"
+                      LineHeight="24"
+                      FontSize="12"
+                      FontFamily="Consolas, Courier New"/>
+        </ScrollViewer>
+
+        <!-- Status Bar -->
+        <Border DockPanel.Dock="Bottom"
+               Background="#1E1E1E"
+               BorderBrush="#444"
+               BorderThickness="0,1,0,0"
+               Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Column="0"
+                          Name="StatusTextBlock"
+                          Text="✓ Carregado"
+                          Foreground="#00FF00"
+                          FontSize="11"/>
+                
+                <StackPanel Grid.Column="1"
+                           Orientation="Horizontal">
+                    <TextBlock Text="Linhas: "
+                              Foreground="#AAAAAA"
+                              FontSize="11"
+                              Margin="0,0,5,0"/>
+                    <TextBlock Name="LineCountTextBlock"
+                              Text="0"
+                              Foreground="#00FF00"
+                              FontSize="11"
+                              Margin="0,0,20,0"/>
+                    
+                    <TextBlock Text="Caracteres: "
+                              Foreground="#AAAAAA"
+                              FontSize="11"
+                              Margin="0,0,5,0"/>
+                    <TextBlock Name="CharCountTextBlock"
+                              Text="0"
+                              Foreground="#00FF00"
+                              FontSize="11"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </DockPanel>
+</Window>
